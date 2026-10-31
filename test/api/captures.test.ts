@@ -35,9 +35,12 @@ class MemoryStore
     return this.transactions.get(`${workspaceId}:${captureId}`) ?? null;
   }
 
-  async save(input: TransactionRecord) {
-    this.transactions.set(`${input.workspaceId}:${input.captureId}`, input);
-    return input;
+  async saveOrGet(input: TransactionRecord) {
+    const key = `${input.workspaceId}:${input.captureId}`;
+    const existing = this.transactions.get(key);
+    if (existing) return { transaction: existing, created: false };
+    this.transactions.set(key, input);
+    return { transaction: input, created: true };
   }
 
   async findByWorkspaceAndChannel() {
@@ -98,7 +101,7 @@ describe("POST /v1/captures", () => {
     expect(response.json()).toMatchObject({
       status: "pending_confirmation",
       message: "Interpreté un gasto de ₡15.000 CRC en Gasolina con Tarjeta. ¿Querés registrarlo?",
-      actions: ["confirm", "correct", "cancel"]
+      actions: ["confirm", "cancel"]
     });
     expect([...store.transactions.values()][0]?.status).toBe("pending_confirmation");
     await app.close();
@@ -110,10 +113,31 @@ describe("POST /v1/captures", () => {
     const first = await app.inject({ method: "POST", url: "/v1/captures", payload: validPayload });
     const repeated = await app.inject({ method: "POST", url: "/v1/captures", payload: validPayload });
 
+    expect(first.statusCode).toBe(201);
     expect(repeated.statusCode).toBe(200);
-    expect(repeated.json()).toEqual(first.json());
+    expect(repeated.json()).toMatchObject({
+      status: "registered",
+      duplicate: true,
+      message: "Este gasto ya estaba registrado: ₡15.000 CRC en Gasolina con Tarjeta."
+    });
     expect(store.captures.size).toBe(1);
     expect(store.transactions.size).toBe(1);
+    await app.close();
+  });
+
+  it("handles concurrent repeated delivery without an error or duplicate transaction", async () => {
+    const { app, store } = createTestApp();
+
+    const [first, second] = await Promise.all([
+      app.inject({ method: "POST", url: "/v1/captures", payload: validPayload }),
+      app.inject({ method: "POST", url: "/v1/captures", payload: validPayload })
+    ]);
+
+    expect([first.statusCode, second.statusCode].sort()).toEqual([200, 201]);
+    expect(store.transactions.size).toBe(1);
+    expect([first.json(), second.json()]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ duplicate: true })])
+    );
     await app.close();
   });
 

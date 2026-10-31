@@ -1,5 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
 
+import type {
+  ConfirmationPolicyRecord,
+  ConfirmationPolicyRepository
+} from "../../application/ports.js";
+import type { CaptureChannel } from "../../domain/transactions/expense-draft.js";
 import { confirmationPolicies } from "../database/schema.js";
 import type { FinanceDatabase } from "./database.js";
 
@@ -7,12 +12,12 @@ type PolicyInput = Omit<
   typeof confirmationPolicies.$inferInsert,
   "version" | "createdAt" | "updatedAt"
 >;
-type PolicyRecord = typeof confirmationPolicies.$inferSelect;
+type StoredPolicy = typeof confirmationPolicies.$inferSelect;
 
-export class DrizzleConfirmationPolicyRepository {
+export class DrizzleConfirmationPolicyRepository implements ConfirmationPolicyRepository {
   constructor(private readonly db: FinanceDatabase) {}
 
-  async save(input: PolicyInput): Promise<PolicyRecord> {
+  async save(input: PolicyInput): Promise<StoredPolicy> {
     const [policy] = await this.db
       .insert(confirmationPolicies)
       .values(input)
@@ -27,17 +32,14 @@ export class DrizzleConfirmationPolicyRepository {
       })
       .returning();
 
-    if (!policy) {
-      throw new Error("confirmation policy was not persisted");
-    }
-
+    if (!policy) throw new Error("confirmation policy was not persisted");
     return policy;
   }
 
   async findByWorkspaceAndChannel(
     workspaceId: string,
-    channel: string
-  ): Promise<PolicyRecord | null> {
+    channel: CaptureChannel
+  ): Promise<ConfirmationPolicyRecord | null> {
     const [policy] = await this.db
       .select()
       .from(confirmationPolicies)
@@ -49,6 +51,23 @@ export class DrizzleConfirmationPolicyRepository {
       )
       .limit(1);
 
-    return policy ?? null;
+    return policy ? this.toRecord(policy) : null;
+  }
+
+  private toRecord(row: StoredPolicy): ConfirmationPolicyRecord {
+    if (
+      row.channel !== "telegram" ||
+      !["always_confirm", "confidence_based", "never_confirm"].includes(row.mode)
+    ) {
+      throw new Error("stored confirmation policy has an unsupported channel or mode");
+    }
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      channel: "telegram",
+      mode: row.mode as ConfirmationPolicyRecord["mode"],
+      confidenceThreshold: row.confidenceThreshold,
+      version: row.version
+    };
   }
 }

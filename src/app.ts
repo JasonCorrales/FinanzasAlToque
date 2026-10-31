@@ -27,8 +27,9 @@ export function buildApp(options: BuildAppOptions = {}) {
         return reply.code(400).send({ status: "rejected", message: "La captura no es válida." });
       }
       const outcome = await processCapture.execute(parsed.data);
-      const statusCode = outcome.status === "needs_information" ? 422 : outcome.repeated ? 200 : 201;
-      const { repeated: _repeated, ...body } = outcome;
+      const statusCode = outcome.status === "needs_information" ? 422 : outcome.duplicate ? 200 : 201;
+      const { duplicate, ...rest } = outcome;
+      const body = duplicate ? { ...rest, duplicate: true } : rest;
       return reply.code(statusCode).send(body);
     });
   }

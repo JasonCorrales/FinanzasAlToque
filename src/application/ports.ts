@@ -24,9 +24,12 @@ export interface TransactionRecord {
 }
 
 export interface ConfirmationPolicyRecord {
+  id?: string;
+  workspaceId?: string;
   channel: CaptureChannel;
   mode: ConfirmationMode;
   confidenceThreshold: string | null;
+  version?: number;
 }
 
 export interface CaptureRepository {
@@ -35,7 +38,7 @@ export interface CaptureRepository {
 
 export interface TransactionRepository {
   findByCaptureId(workspaceId: string, captureId: string): Promise<TransactionRecord | null>;
-  save(input: TransactionRecord): Promise<TransactionRecord>;
+  saveOrGet(input: TransactionRecord): Promise<{ transaction: TransactionRecord; created: boolean }>;
 }
 
 export interface ConfirmationPolicyRepository {

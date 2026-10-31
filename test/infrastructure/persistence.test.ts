@@ -113,11 +113,14 @@ describe("PostgreSQL repositories", () => {
       confidence: "0.9800"
     };
 
-    await transactions.save(transaction);
-    await expect(
-      transactions.save({ ...transaction, id: "40000000-0000-4000-8000-000000000002" })
-    ).rejects.toThrow();
+    const first = await transactions.saveOrGet(transaction);
+    const repeated = await transactions.saveOrGet({
+      ...transaction,
+      id: "40000000-0000-4000-8000-000000000002"
+    });
 
+    expect(first.created).toBe(true);
+    expect(repeated).toMatchObject({ created: false, transaction: { id: transaction.id } });
     expect(await transactions.count()).toBe(1);
     expect(await transactions.findByCaptureId(workspaceId, capture.id)).toMatchObject({
       ...transaction,
@@ -138,7 +141,7 @@ describe("PostgreSQL repositories", () => {
     });
 
     await expect(
-      transactions.save({
+      transactions.saveOrGet({
         id: "40000000-0000-4000-8000-000000000020",
         workspaceId: "10000000-0000-4000-8000-000000000099",
         captureId: foreignCapture.id,
@@ -180,7 +183,7 @@ describe("PostgreSQL repositories", () => {
     });
 
     await expect(
-      transactions.save({
+      transactions.saveOrGet({
         id: crypto.randomUUID(),
         workspaceId,
         captureId: capture.id,

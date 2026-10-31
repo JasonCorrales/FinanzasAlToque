@@ -24,15 +24,19 @@ export interface ProcessCaptureInput {
   message: string;
 }
 
+type PublicTransaction = Omit<TransactionRecord, "id" | "workspaceId" | "captureId" | "confidence"> & {
+  confidence: number;
+};
+
 export type ProcessCaptureOutput =
   | {
       status: "registered" | "pending_confirmation";
       message: string;
-      transaction: Omit<TransactionRecord, "id" | "workspaceId" | "captureId" | "confidence"> & { confidence: number };
-      actions?: readonly ["confirm", "correct", "cancel"];
-      repeated: boolean;
+      transaction: PublicTransaction;
+      actions?: readonly ["confirm", "cancel"];
+      duplicate: boolean;
     }
-  | { status: "needs_information"; message: string; missingFields: string[]; repeated: false };
+  | { status: "needs_information"; message: string; missingFields: string[]; duplicate: false };
 
 export class ProcessCapture {
   constructor(private readonly dependencies: Dependencies) {}
@@ -55,7 +59,7 @@ export class ProcessCapture {
         status: "needs_information",
         message: `No registré el gasto. Faltan: ${this.missingLabels(interpretation.missingFields)}.`,
         missingFields: interpretation.missingFields,
-        repeated: false
+        duplicate: false
       };
     }
 
@@ -76,7 +80,7 @@ export class ProcessCapture {
         : Number(policyRecord.confidenceThreshold)
     });
     const values = draft.toPrimitives();
-    const saved = await this.dependencies.transactions.save({
+    const saved = await this.dependencies.transactions.saveOrGet({
       id: this.dependencies.nextId(),
       workspaceId: input.workspaceId,
       captureId: capture.id,
@@ -88,19 +92,21 @@ export class ProcessCapture {
       status: policy.decide(values.confidence),
       confidence: values.confidence.toFixed(4)
     });
-    return this.success(saved, false);
+    return this.success(saved.transaction, !saved.created);
   }
 
-  private success(record: TransactionRecord, repeated: boolean): ProcessCaptureOutput {
+  private success(record: TransactionRecord, duplicate: boolean): ProcessCaptureOutput {
     const amount = Number.parseInt(record.amount, 10).toLocaleString("es-CR").replaceAll(" ", ".");
     const paymentLabel = record.paymentMethod === "card" ? "Tarjeta" : record.paymentMethod;
     const pending = record.status === "pending_confirmation";
     return {
       status: record.status,
-      message: pending
-        ? `Interpreté un gasto de ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}. ¿Querés registrarlo?`
-        : `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
-      ...(pending ? { actions: ["confirm", "correct", "cancel"] as const } : {}),
+      message: duplicate
+        ? `Este gasto ya estaba registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`
+        : pending
+          ? `Interpreté un gasto de ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}. ¿Querés registrarlo?`
+          : `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
+      ...(pending && !duplicate ? { actions: ["confirm", "cancel"] as const } : {}),
       transaction: {
         transactionType: record.transactionType,
         amount: record.amount,
@@ -110,12 +116,18 @@ export class ProcessCapture {
         status: record.status,
         confidence: Number(record.confidence)
       },
-      repeated
+      duplicate
     };
   }
 
   private missingLabels(fields: string[]): string {
-    const labels: Record<string, string> = { transactionType: "tipo", amount: "monto", currency: "moneda", concept: "concepto", paymentMethod: "medio de pago" };
+    const labels: Record<string, string> = {
+      transactionType: "tipo",
+      amount: "monto",
+      currency: "moneda",
+      concept: "concepto",
+      paymentMethod: "medio de pago"
+    };
     const values = fields.map((field) => labels[field] ?? field);
     return values.length === 1 ? values[0]! : `${values.slice(0, -1).join(", ")} y ${values.at(-1)}`;
   }
