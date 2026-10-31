@@ -88,6 +88,22 @@ describe("POST /v1/captures", () => {
     await app.close();
   });
 
+  it("returns confirmation actions when the Telegram channel policy requires confirmation", async () => {
+    const { app, store } = createTestApp();
+    store.policy = { channel: "telegram", mode: "always_confirm", confidenceThreshold: null };
+
+    const response = await app.inject({ method: "POST", url: "/v1/captures", payload: validPayload });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      status: "pending_confirmation",
+      message: "Interpreté un gasto de ₡15.000 CRC en Gasolina con Tarjeta. ¿Querés registrarlo?",
+      actions: ["confirm", "correct", "cancel"]
+    });
+    expect([...store.transactions.values()][0]?.status).toBe("pending_confirmation");
+    await app.close();
+  });
+
   it("does not duplicate a transaction when Telegram delivers the same message twice", async () => {
     const { app, store } = createTestApp();
 

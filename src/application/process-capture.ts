@@ -25,7 +25,13 @@ export interface ProcessCaptureInput {
 }
 
 export type ProcessCaptureOutput =
-  | { status: "registered" | "pending_confirmation"; message: string; transaction: Omit<TransactionRecord, "id" | "workspaceId" | "captureId" | "confidence"> & { confidence: number }; repeated: boolean }
+  | {
+      status: "registered" | "pending_confirmation";
+      message: string;
+      transaction: Omit<TransactionRecord, "id" | "workspaceId" | "captureId" | "confidence"> & { confidence: number };
+      actions?: readonly ["confirm", "correct", "cancel"];
+      repeated: boolean;
+    }
   | { status: "needs_information"; message: string; missingFields: string[]; repeated: false };
 
 export class ProcessCapture {
@@ -88,9 +94,13 @@ export class ProcessCapture {
   private success(record: TransactionRecord, repeated: boolean): ProcessCaptureOutput {
     const amount = Number.parseInt(record.amount, 10).toLocaleString("es-CR").replaceAll(" ", ".");
     const paymentLabel = record.paymentMethod === "card" ? "Tarjeta" : record.paymentMethod;
+    const pending = record.status === "pending_confirmation";
     return {
       status: record.status,
-      message: `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
+      message: pending
+        ? `Interpreté un gasto de ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}. ¿Querés registrarlo?`
+        : `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
+      ...(pending ? { actions: ["confirm", "correct", "cancel"] as const } : {}),
       transaction: {
         transactionType: record.transactionType,
         amount: record.amount,

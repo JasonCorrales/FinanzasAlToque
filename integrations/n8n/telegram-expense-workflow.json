@@ -1,0 +1,53 @@
+{
+  "name": "Telegram expense capture",
+  "nodes": [
+    {
+      "parameters": { "updates": ["message"] },
+      "id": "telegram-trigger",
+      "name": "Telegram message",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FINANCE_API_URL + '/v1/captures' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { workspaceId: $env.FINANCE_WORKSPACE_ID, externalMessageId: String($json.message.message_id), channel: 'telegram', message: $json.message.text } }}",
+        "options": {}
+      },
+      "id": "capture-expense",
+      "name": "Capture expense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram message').item.json.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "telegram-response",
+      "name": "Explain outcome",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "Telegram message": {
+      "main": [[{ "node": "Capture expense", "type": "main", "index": 0 }]]
+    },
+    "Capture expense": {
+      "main": [[{ "node": "Explain outcome", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "00000000-0000-4000-8000-000000000001",
+  "meta": { "templateCredsSetupCompleted": false },
+  "tags": []
+}
