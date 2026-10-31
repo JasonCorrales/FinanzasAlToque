@@ -14,8 +14,8 @@ Branch: `feat/telegram-expense-mvp` | Delivery: `stacked-to-main` (forecast: ~1,
 ## Tasks
 
 - **T1** [S6] `inline` — **done** — Bootstrap repository, strict TypeScript/Fastify tooling, test runner, local PostgreSQL configuration, and health check. RED/GREEN, full checks, npm audit, and independent verification passed. Commit: `b52b0bfa93ebcf904d781a0c0f9b3932db8c7afd`.
-- **T2** [S2, S3, S5, S6] `inline` — **in_progress** — Implement and test the pure domain model for captures, money, expense drafts, transaction outcomes, and channel confirmation policy. Commit: pending.
-- **T3** [S2, S3, S5, S6] `inline` — **pending** — Implement Drizzle schema, migrations, and repositories for captures, transactions, and channel policies with persistence tests. Commit: pending.
+- **T2** [S2, S3, S5, S6] `inline` — **done** — Implement and test the pure domain model for captures, money, expense drafts, transaction outcomes, and channel confirmation policy. RED/GREEN and full checks passed. Commit: `d76679a8a1fefe6e7bc64fc5f4f7d83582eeaa91`.
+- **T3** [S2, S3, S5, S6] `inline` — **in_progress** — Implement Drizzle schema, migrations, and repositories for captures, transactions, and channel policies with persistence tests. Commit: pending.
 - **T4** [S2, S3, S4, S6] `inline` — **pending** — Implement the interpreter port, deterministic MVP interpreter adapter, capture use case, idempotent API, and outcome contracts test-first. Commit: pending.
 - **T5** [S1, S4, S5] `inline` — **pending** — Implement confirmation/correction outcome handling and provide the n8n/Telegram integration contract and workflow template. Commit: pending.
 - **T6** [S1-S6] `inline` — **pending** — Run the full end-to-end acceptance examples, independent high-risk verification, and complete operator/API documentation. Commit: pending.
@@ -29,3 +29,6 @@ Branch: `feat/telegram-expense-mvp` | Delivery: `stacked-to-main` (forecast: ~1,
 - **L5 (2026-04-05):** T1 observed RED (missing `src/app.ts`), then GREEN: typecheck, 1/1 test, build, and npm audit with zero vulnerabilities. Independent verifier returned PASS for S6.
 - **L6 (2026-04-05):** User supplied repository-local Git author identity. Global Git configuration remains unchanged.
 - **L7 (2026-04-05):** T1 closed in commit `b52b0bfa93ebcf904d781a0c0f9b3932db8c7afd`; T2 started.
+- **L8 (2026-04-05):** T2 observed RED for missing domain modules, then GREEN: 15/15 focused tests and 16/16 full tests passed with typecheck and build. Closed in commit `d76679a8a1fefe6e7bc64fc5f4f7d83582eeaa91`; T3 started.
+- **L9 (2026-04-05):** Docker/PostgreSQL binaries were unavailable, so T3 uses isolated PGlite while retaining node-postgres for production. Drizzle Kit was removed after its secure beta proved incompatible with stable Drizzle ORM; versioned PostgreSQL SQL migrations are repository-owned instead.
+- **L10 (2026-04-05):** Independent T3 verification failed on cross-workspace transaction isolation and repeat migration safety. Regression tests and fixes are required before T3 can close. The verifier also created `.codegraph/` unexpectedly during read-only verification; it is excluded from Git and not part of the product diff.
