@@ -13,8 +13,8 @@ Branch: `feat/telegram-expense-mvp` | Delivery: `stacked-to-main` (forecast: ~1,
 
 ## Tasks
 
-- **T1** [S6] `inline` — **in_progress** — Bootstrap repository, strict TypeScript/Fastify tooling, test runner, local PostgreSQL configuration, and health check. Checks and independent verification pass; creating the authorized work-unit commit. Commit: pending.
-- **T2** [S2, S3, S5, S6] `inline` — **pending** — Implement and test the pure domain model for captures, money, expense drafts, transaction outcomes, and channel confirmation policy. Commit: pending.
+- **T1** [S6] `inline` — **done** — Bootstrap repository, strict TypeScript/Fastify tooling, test runner, local PostgreSQL configuration, and health check. RED/GREEN, full checks, npm audit, and independent verification passed. Commit: `b52b0bfa93ebcf904d781a0c0f9b3932db8c7afd`.
+- **T2** [S2, S3, S5, S6] `inline` — **in_progress** — Implement and test the pure domain model for captures, money, expense drafts, transaction outcomes, and channel confirmation policy. Commit: pending.
 - **T3** [S2, S3, S5, S6] `inline` — **pending** — Implement Drizzle schema, migrations, and repositories for captures, transactions, and channel policies with persistence tests. Commit: pending.
 - **T4** [S2, S3, S4, S6] `inline` — **pending** — Implement the interpreter port, deterministic MVP interpreter adapter, capture use case, idempotent API, and outcome contracts test-first. Commit: pending.
 - **T5** [S1, S4, S5] `inline` — **pending** — Implement confirmation/correction outcome handling and provide the n8n/Telegram integration contract and workflow template. Commit: pending.
@@ -28,3 +28,4 @@ Branch: `feat/telegram-expense-mvp` | Delivery: `stacked-to-main` (forecast: ~1,
 - **L4 (2026-04-05):** User selected `stacked-to-main`; the verified default branch is `main`. Push, PR creation, and merge remain unauthorized.
 - **L5 (2026-04-05):** T1 observed RED (missing `src/app.ts`), then GREEN: typecheck, 1/1 test, build, and npm audit with zero vulnerabilities. Independent verifier returned PASS for S6.
 - **L6 (2026-04-05):** User supplied repository-local Git author identity. Global Git configuration remains unchanged.
+- **L7 (2026-04-05):** T1 closed in commit `b52b0bfa93ebcf904d781a0c0f9b3932db8c7afd`; T2 started.
