@@ -30,8 +30,9 @@ type PublicTransaction = Omit<TransactionRecord, "id" | "workspaceId" | "capture
 
 export type ProcessCaptureOutput =
   | {
-      status: "registered" | "pending_confirmation";
+      status: "registered" | "pending_confirmation" | "cancelled";
       message: string;
+      transactionId: string;
       transaction: PublicTransaction;
       actions?: readonly ["confirm", "cancel"];
       duplicate: boolean;
@@ -99,14 +100,18 @@ export class ProcessCapture {
     const amount = Number.parseInt(record.amount, 10).toLocaleString("es-CR").replaceAll(" ", ".");
     const paymentLabel = record.paymentMethod === "card" ? "Tarjeta" : record.paymentMethod;
     const pending = record.status === "pending_confirmation";
+    const cancelled = record.status === "cancelled";
     return {
       status: record.status,
-      message: duplicate
-        ? `Este gasto ya estaba registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`
-        : pending
-          ? `Interpreté un gasto de ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}. ¿Querés registrarlo?`
-          : `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
+      message: cancelled
+        ? `Este gasto estaba cancelado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`
+        : duplicate
+          ? `Este gasto ya estaba registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`
+          : pending
+            ? `Interpreté un gasto de ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}. ¿Querés registrarlo?`
+            : `Gasto registrado: ₡${amount} ${record.currency} en ${record.concept} con ${paymentLabel}.`,
       ...(pending && !duplicate ? { actions: ["confirm", "cancel"] as const } : {}),
+      transactionId: record.id,
       transaction: {
         transactionType: record.transactionType,
         amount: record.amount,

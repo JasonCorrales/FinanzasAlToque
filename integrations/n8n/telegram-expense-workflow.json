@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": { "updates": ["message"] },
-      "id": "telegram-trigger",
+      "id": "telegram-message-trigger",
       "name": "Telegram message",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
@@ -22,7 +22,60 @@
       "name": "Capture expense",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 0]
+      "position": [240, 0],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending_confirmation",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-pending",
+      "name": "Needs confirmation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram message').item.json.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Confirmar",
+                    "additionalFields": { "callback_data": "={{ 'confirm:' + $json.transactionId }}" }
+                  },
+                  {
+                    "text": "Cancelar",
+                    "additionalFields": { "callback_data": "={{ 'cancel:' + $json.transactionId }}" }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "id": "explain-pending",
+      "name": "Explain pending",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [720, -100]
     },
     {
       "parameters": {
@@ -30,11 +83,59 @@
         "text": "={{ $json.message }}",
         "additionalFields": {}
       },
-      "id": "telegram-response",
+      "id": "explain-outcome",
       "name": "Explain outcome",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [480, 0]
+      "position": [720, 100]
+    },
+    {
+      "parameters": { "updates": ["callback_query"] },
+      "id": "telegram-decision-trigger",
+      "name": "Telegram decision",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FINANCE_API_URL + '/v1/transactions/' + $json.callback_query.data.split(':')[1] + '/decision' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { workspaceId: $env.FINANCE_WORKSPACE_ID, action: $json.callback_query.data.split(':')[0] } }}",
+        "options": {}
+      },
+      "id": "apply-decision",
+      "name": "Apply decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram decision').item.json.callback_query.message.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "id": "explain-decision",
+      "name": "Explain decision",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [480, 260]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram decision').isExecuted ? $('Telegram decision').item.json.callback_query.message.chat.id : $('Telegram message').item.json.message.chat.id }}",
+        "text": "No pude procesar la operación. No se registró ningún cambio; intentá nuevamente.",
+        "additionalFields": {}
+      },
+      "id": "explain-error",
+      "name": "Explain error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [720, 400]
     }
   ],
   "connections": {
@@ -42,7 +143,25 @@
       "main": [[{ "node": "Capture expense", "type": "main", "index": 0 }]]
     },
     "Capture expense": {
-      "main": [[{ "node": "Explain outcome", "type": "main", "index": 0 }]]
+      "main": [
+        [{ "node": "Needs confirmation", "type": "main", "index": 0 }],
+        [{ "node": "Explain error", "type": "main", "index": 0 }]
+      ]
+    },
+    "Needs confirmation": {
+      "main": [
+        [{ "node": "Explain pending", "type": "main", "index": 0 }],
+        [{ "node": "Explain outcome", "type": "main", "index": 0 }]
+      ]
+    },
+    "Telegram decision": {
+      "main": [[{ "node": "Apply decision", "type": "main", "index": 0 }]]
+    },
+    "Apply decision": {
+      "main": [
+        [{ "node": "Explain decision", "type": "main", "index": 0 }],
+        [{ "node": "Explain error", "type": "main", "index": 0 }]
+      ]
     }
   },
   "active": false,

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { FastifyServerOptions } from "fastify";
 
+import { DecideTransaction } from "./application/decide-transaction.js";
 import { ProcessCapture } from "./application/process-capture.js";
 import { buildApp } from "./app.js";
 import { SpanishExpenseInterpreter } from "./infrastructure/interpreters/spanish-expense-interpreter.js";
@@ -19,13 +20,16 @@ export function buildProductionApp(
   options: ProductionAppOptions = {}
 ) {
   const { nextId = randomUUID, ...fastifyOptions } = options;
+  const transactions = new DrizzleTransactionRepository(db);
   const processCapture = new ProcessCapture({
     captures: new DrizzleCaptureRepository(db),
-    transactions: new DrizzleTransactionRepository(db),
+    transactions,
     confirmationPolicies: new DrizzleConfirmationPolicyRepository(db),
     interpreter: new SpanishExpenseInterpreter(),
     nextId
   });
 
-  return buildApp({ ...fastifyOptions, processCapture });
+  const decideTransaction = new DecideTransaction(transactions);
+
+  return buildApp({ ...fastifyOptions, processCapture, decideTransaction });
 }

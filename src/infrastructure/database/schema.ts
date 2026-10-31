@@ -101,7 +101,7 @@ export const transactions = pgTable(
     check("transactions_payment_method_check", sql`length(trim(${table.paymentMethod})) > 0`),
     check(
       "transactions_status_check",
-      sql`${table.status} in ('registered', 'pending_confirmation')`
+      sql`${table.status} in ('registered', 'pending_confirmation', 'cancelled')`
     ),
     check("transactions_confidence_check", sql`${table.confidence} between 0 and 1`)
   ]

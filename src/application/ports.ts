@@ -19,7 +19,7 @@ export interface TransactionRecord {
   currency: string;
   concept: string;
   paymentMethod: string;
-  status: "registered" | "pending_confirmation";
+  status: "registered" | "pending_confirmation" | "cancelled";
   confidence: string;
 }
 
@@ -39,6 +39,14 @@ export interface CaptureRepository {
 export interface TransactionRepository {
   findByCaptureId(workspaceId: string, captureId: string): Promise<TransactionRecord | null>;
   saveOrGet(input: TransactionRecord): Promise<{ transaction: TransactionRecord; created: boolean }>;
+}
+
+export interface TransactionDecisionRepository {
+  decide(
+    workspaceId: string,
+    transactionId: string,
+    action: "confirm" | "cancel"
+  ): Promise<TransactionRecord | null>;
 }
 
 export interface ConfirmationPolicyRepository {

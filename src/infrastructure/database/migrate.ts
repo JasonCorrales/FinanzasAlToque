@@ -1,12 +1,18 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
 export interface SqlMigrationClient {
   exec(sql: string): Promise<unknown>;
 }
 
-const initialMigrationUrl = new URL("../../../migrations/0001_initial.sql", import.meta.url);
+const migrationsUrl = new URL("../../../migrations/", import.meta.url);
 
 export async function applyMigrations(client: SqlMigrationClient): Promise<void> {
-  const migration = await readFile(initialMigrationUrl, "utf8");
-  await client.exec(migration);
+  const migrationFiles = (await readdir(migrationsUrl))
+    .filter((file) => file.endsWith(".sql"))
+    .sort();
+
+  for (const file of migrationFiles) {
+    const migration = await readFile(new URL(file, migrationsUrl), "utf8");
+    await client.exec(migration);
+  }
 }

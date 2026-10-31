@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import type {
+  TransactionDecisionRepository,
   TransactionRecord,
   TransactionRepository
 } from "../../application/ports.js";
@@ -9,7 +10,9 @@ import type { FinanceDatabase } from "./database.js";
 
 type StoredTransaction = typeof transactions.$inferSelect;
 
-export class DrizzleTransactionRepository implements TransactionRepository {
+export class DrizzleTransactionRepository
+  implements TransactionRepository, TransactionDecisionRepository
+{
   constructor(private readonly db: FinanceDatabase) {}
 
   async saveOrGet(
@@ -21,22 +24,14 @@ export class DrizzleTransactionRepository implements TransactionRepository {
       .onConflictDoNothing({ target: transactions.captureId })
       .returning();
 
-    if (created) {
-      return { transaction: this.toRecord(created), created: true };
-    }
+    if (created) return { transaction: this.toRecord(created), created: true };
 
     const existing = await this.findByCaptureId(input.workspaceId, input.captureId);
-    if (!existing) {
-      throw new Error("transaction conflict did not resolve to an existing record");
-    }
-
+    if (!existing) throw new Error("transaction conflict did not resolve to an existing record");
     return { transaction: existing, created: false };
   }
 
-  async findByCaptureId(
-    workspaceId: string,
-    captureId: string
-  ): Promise<TransactionRecord | null> {
+  async findByCaptureId(workspaceId: string, captureId: string): Promise<TransactionRecord | null> {
     const [transaction] = await this.db
       .select()
       .from(transactions)
@@ -47,8 +42,35 @@ export class DrizzleTransactionRepository implements TransactionRepository {
         )
       )
       .limit(1);
-
     return transaction ? this.toRecord(transaction) : null;
+  }
+
+  async decide(
+    workspaceId: string,
+    transactionId: string,
+    action: "confirm" | "cancel"
+  ): Promise<TransactionRecord | null> {
+    const targetStatus = action === "confirm" ? "registered" : "cancelled";
+    const [updated] = await this.db
+      .update(transactions)
+      .set({ status: targetStatus })
+      .where(
+        and(
+          eq(transactions.workspaceId, workspaceId),
+          eq(transactions.id, transactionId),
+          eq(transactions.status, "pending_confirmation")
+        )
+      )
+      .returning();
+
+    if (updated) return this.toRecord(updated);
+
+    const [existing] = await this.db
+      .select()
+      .from(transactions)
+      .where(and(eq(transactions.workspaceId, workspaceId), eq(transactions.id, transactionId)))
+      .limit(1);
+    return existing ? this.toRecord(existing) : null;
   }
 
   async count(): Promise<number> {
@@ -58,7 +80,7 @@ export class DrizzleTransactionRepository implements TransactionRepository {
   private toRecord(row: StoredTransaction): TransactionRecord {
     if (
       row.transactionType !== "expense" ||
-      !["registered", "pending_confirmation"].includes(row.status)
+      !["registered", "pending_confirmation", "cancelled"].includes(row.status)
     ) {
       throw new Error("stored transaction has an unsupported type or status");
     }

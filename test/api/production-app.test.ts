@@ -37,6 +37,21 @@ describe("production application composition", () => {
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toMatchObject({ status: "pending_confirmation" });
+
+    const decision = await app.inject({
+      method: "POST",
+      url: `/v1/transactions/${response.json().transactionId}/decision`,
+      payload: {
+        workspaceId: "10000000-0000-4000-8000-000000000001",
+        action: "confirm"
+      }
+    });
+
+    expect(decision.statusCode).toBe(200);
+    expect(decision.json()).toEqual({
+      status: "registered",
+      message: "Gasto confirmado: ₡15.000 CRC en Gasolina."
+    });
     await app.close();
   });
 });
