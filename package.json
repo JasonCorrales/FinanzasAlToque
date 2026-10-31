@@ -1,9 +1,9 @@
 {
-  "name": "finanzas-personales-api",
+  "name": "finanzas-al-toque-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Conversational personal-finance capture backend",
+  "description": "Finanzas al Toque conversational expense-capture backend",
   "engines": {
     "node": ">=22"
   },
