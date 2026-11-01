@@ -18,12 +18,15 @@ Finanzas al Toque is a text-first personal-finance MVP. A user sends a Spanish e
    DATABASE_URL=postgres://finanzas:finanzas@localhost:5432/finanzas npm run dev
    ```
 
-5. Import `integrations/n8n/telegram-expense-workflow.json` into n8n.
-6. Configure Telegram credentials on its trigger/action nodes and set these n8n environment variables:
-   - `FINANCE_API_URL`, for example `http://host.docker.internal:3000`;
-   - `FINANCE_WORKSPACE_ID`, a UUID identifying the tenant.
+5. Import the workflow that matches the n8n runtime:
+   - n8n Cloud: `integrations/n8n/telegram-expense-workflow-cloud.json`;
+   - self-hosted n8n: `integrations/n8n/telegram-expense-workflow.json`.
+6. Configure the same Telegram credential on the single trigger node and all Telegram action nodes. The trigger subscribes to both messages and callback queries, avoiding Telegram's one-webhook-per-bot conflict.
+7. Configure the finance API values:
+   - n8n Cloud custom variables: `FINANCE_API_URL` and `FINANCE_WORKSPACE_ID` (the Cloud template reads them through `$vars`);
+   - self-hosted environment variables: `FINANCE_API_URL` and `FINANCE_WORKSPACE_ID` (the self-hosted template reads them through `$env`).
 
-Check `GET /health`; it should return `{"status":"ok"}`.
+For n8n Cloud, `FINANCE_API_URL` must be a publicly reachable HTTPS URL. A self-hosted n8n instance may use a private HTTP URL when it can reach the API directly. `FINANCE_WORKSPACE_ID` is a UUID identifying the tenant. Check `GET /health`; it should return `{"status":"ok"}`.
 
 ## Capture an expense
 
