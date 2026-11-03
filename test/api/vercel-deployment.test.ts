@@ -1,11 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-afterEach(() => {
-  vi.unstubAllEnvs();
-  vi.resetModules();
-});
+import { describe, expect, it } from "vitest";
 
 describe("Vercel entrypoint", () => {
   it("exposes an unshadowed entrypoint that directly imports Fastify", async () => {
@@ -16,6 +11,8 @@ describe("Vercel entrypoint", () => {
     expect(sourceFiles).not.toContain("app.ts");
     expect(sourceFiles).not.toContain("index.ts");
     expect(serverSource).toMatch(/(?:from|require|import)\s*(?:\(\s*)?["']fastify["']/);
+    expect(serverSource).toMatch(/\.listen\s*\(/);
+    expect(serverSource).not.toMatch(/export\s+default/);
   });
 
   it("keeps Vercel compiler dependencies and APIs available", async () => {
@@ -31,16 +28,5 @@ describe("Vercel entrypoint", () => {
     expect(tsconfig.compilerOptions.types).toEqual(["node"]);
     expect(typescript.sys?.readFile).toBeTypeOf("function");
     expect(typescript.createProgram).toBeTypeOf("function");
-  });
-
-  it("exports the Fastify app for Vercel Functions", async () => {
-    vi.stubEnv("DATABASE_URL", "postgres://user:password@db.example.com:6543/postgres");
-
-    const { default: app } = await import("../../src/server.js");
-    const response = await app.inject({ method: "GET", url: "/health" });
-
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ status: "ok" });
-    await app.close();
   });
 });

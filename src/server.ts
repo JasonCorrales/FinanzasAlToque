@@ -14,4 +14,4 @@ if (!connectionString) {
 const { db } = createPostgresDatabase(connectionString);
 const app = buildProductionApp(db, { logger: true });
 
-export default app;
+await app.listen({ port: 3000 });
