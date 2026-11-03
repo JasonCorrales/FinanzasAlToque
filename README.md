@@ -85,6 +85,19 @@ Correction is intentionally outside this MVP action flow. The user sends a new T
 
 The interpreter never writes directly to the database. The backend is the authority for validation, tenant isolation, idempotency, confirmation policy, transitions, and persistence. The current deterministic Spanish interpreter is replaceable through the `MessageInterpreter` port by an AI-backed adapter later.
 
+## Deploy on Vercel
+
+This change makes the API deployable on Vercel; it does **not** deploy it. Vercel detects `src/server.ts` as the Fastify Function entrypoint. Use Node.js 22.x (pinned in `package.json`).
+
+1. Create a Vercel project from this repository and configure these environment variables:
+   - `DATABASE_URL`: the Supabase **shared transaction pooler** connection string, using port `6543`.
+   - `DATABASE_CA_CERT`: the PEM CA certificate for that Supabase connection. Store the full certificate as an environment variable for Preview and Production; do not commit it. Every Vercel deployment fails at startup if it is absent, rather than disabling certificate verification.
+2. Run `npm run db:migrate` separately against the target database before serving traffic. Migrations are not run by the serverless function.
+3. After deployment, verify `GET https://<your-vercel-domain>/health` returns `{"status":"ok"}`.
+4. Update n8n `FINANCE_API_URL` to `https://<your-vercel-domain>` (and keep `FINANCE_WORKSPACE_ID` configured as before).
+
+The function reuses its module-scoped PostgreSQL pool between warm invocations and limits that pool to one connection on Vercel. Local development remains unchanged: `npm run dev` and `npm start` use `src/main.ts` and only enable TLS when `DATABASE_CA_CERT` is supplied.
+
 ## Verification
 
 ```bash
