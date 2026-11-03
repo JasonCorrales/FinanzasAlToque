@@ -11,7 +11,8 @@ describe("Vercel entrypoint", () => {
     expect(sourceFiles).not.toContain("app.ts");
     expect(sourceFiles).not.toContain("index.ts");
     expect(serverSource).toMatch(/(?:from|require|import)\s*(?:\(\s*)?["']fastify["']/);
-    expect(serverSource).toMatch(/\.listen\s*\(/);
+    expect(serverSource).toContain("app.listen({ port: 3000 });");
+    expect(serverSource).not.toMatch(/await\s+app\.listen/);
     expect(serverSource).not.toMatch(/export\s+default/);
   });
 
