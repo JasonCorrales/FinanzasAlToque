@@ -8,12 +8,14 @@ afterEach(() => {
 });
 
 describe("Vercel entrypoint", () => {
-  it("does not shadow src/server.ts with a reserved entrypoint filename", async () => {
+  it("exposes an unshadowed entrypoint that directly imports Fastify", async () => {
     const sourceFiles = await readdir("src");
+    const serverSource = await readFile("src/server.ts", "utf8");
 
     expect(sourceFiles).toContain("server.ts");
     expect(sourceFiles).not.toContain("app.ts");
     expect(sourceFiles).not.toContain("index.ts");
+    expect(serverSource).toMatch(/(?:from|require|import)\s*(?:\(\s*)?["']fastify["']/);
   });
 
   it("keeps Vercel compiler dependencies and APIs available", async () => {

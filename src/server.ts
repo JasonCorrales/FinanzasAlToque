@@ -1,3 +1,6 @@
+// Vercel's Fastify detector requires the entrypoint to import the framework directly.
+import "fastify";
+
 import { buildProductionApp } from "./bootstrap.js";
 import { createPostgresDatabase } from "./infrastructure/database/node-postgres.js";
 
