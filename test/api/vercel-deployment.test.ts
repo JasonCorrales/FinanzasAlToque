@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,14 @@ afterEach(() => {
 });
 
 describe("Vercel entrypoint", () => {
+  it("does not shadow src/server.ts with a reserved entrypoint filename", async () => {
+    const sourceFiles = await readdir("src");
+
+    expect(sourceFiles).toContain("server.ts");
+    expect(sourceFiles).not.toContain("app.ts");
+    expect(sourceFiles).not.toContain("index.ts");
+  });
+
   it("keeps Vercel compiler dependencies and APIs available", async () => {
     const packageJson = JSON.parse(await readFile("package.json", "utf8"));
     const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));

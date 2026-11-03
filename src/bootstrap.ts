@@ -4,7 +4,7 @@ import type { FastifyServerOptions } from "fastify";
 
 import { DecideTransaction } from "./application/decide-transaction.js";
 import { ProcessCapture } from "./application/process-capture.js";
-import { buildApp } from "./app.js";
+import { buildApp } from "./http-app.js";
 import { SpanishExpenseInterpreter } from "./infrastructure/interpreters/spanish-expense-interpreter.js";
 import { DrizzleCaptureRepository } from "./infrastructure/repositories/drizzle-capture-repository.js";
 import { DrizzleConfirmationPolicyRepository } from "./infrastructure/repositories/drizzle-confirmation-policy-repository.js";

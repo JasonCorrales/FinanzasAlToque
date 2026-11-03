@@ -5,7 +5,7 @@ import type {
   TransactionDecisionRepository,
   TransactionRecord
 } from "../../src/application/ports.js";
-import { buildApp } from "../../src/app.js";
+import { buildApp } from "../../src/http-app.js";
 
 const workspaceId = "10000000-0000-4000-8000-000000000001";
 const transactionId = "40000000-0000-4000-8000-000000000001";

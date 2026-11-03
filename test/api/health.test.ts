@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildApp } from "../../src/app.js";
+import { buildApp } from "../../src/http-app.js";
 
 const apps: Array<ReturnType<typeof buildApp>> = [];
 

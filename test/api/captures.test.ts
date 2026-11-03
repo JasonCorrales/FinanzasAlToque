@@ -9,7 +9,7 @@ import type {
   TransactionRecord,
   TransactionRepository
 } from "../../src/application/ports.js";
-import { buildApp } from "../../src/app.js";
+import { buildApp } from "../../src/http-app.js";
 import { SpanishExpenseInterpreter } from "../../src/infrastructure/interpreters/spanish-expense-interpreter.js";
 
 class MemoryStore
