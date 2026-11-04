@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   foreignKey,
   integer,
@@ -72,6 +73,25 @@ export const confirmationPolicies = pgTable(
   ]
 );
 
+export const paymentMethods = pgTable(
+  "payment_methods",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    code: text("code").notNull(),
+    label: text("label").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    unique("payment_methods_workspace_code_uq").on(table.workspaceId, table.code),
+    unique("payment_methods_workspace_label_uq").on(table.workspaceId, table.label),
+    check("payment_methods_code_check", sql`length(trim(${table.code})) > 0`),
+    check("payment_methods_label_check", sql`length(trim(${table.label})) > 0`)
+  ]
+);
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -92,6 +112,11 @@ export const transactions = pgTable(
       name: "transactions_workspace_capture_fk",
       columns: [table.workspaceId, table.captureId],
       foreignColumns: [captures.workspaceId, captures.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "transactions_workspace_payment_method_fk",
+      columns: [table.workspaceId, table.paymentMethod],
+      foreignColumns: [paymentMethods.workspaceId, paymentMethods.code]
     }).onDelete("restrict"),
     uniqueIndex("transactions_capture_uq").on(table.captureId),
     check("transactions_type_check", sql`${table.transactionType} = 'expense'`),
