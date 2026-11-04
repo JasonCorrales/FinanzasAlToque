@@ -1,3 +1,5 @@
+import { STATUS_CODES } from "node:http";
+
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { z } from "zod";
 
@@ -23,9 +25,41 @@ const decisionSchema = z.object({
 
 const transactionParamsSchema = z.object({ id: z.string().uuid() });
 
+function publicErrorStatusCode(error: unknown): number {
+  if (typeof error !== "object" || error === null || !("statusCode" in error)) return 500;
+  const statusCode = error.statusCode;
+  return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500
+    ? statusCode
+    : 500;
+}
+
+function publicErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Request failed";
+}
+
 export function buildApp(options: BuildAppOptions = {}) {
   const { processCapture, decideTransaction, ...fastifyOptions } = options;
   const app = Fastify(fastifyOptions);
+
+  app.setErrorHandler((error, request, reply) => {
+    const statusCode = publicErrorStatusCode(error);
+    if (statusCode < 500) {
+      return reply.code(statusCode).send({
+        statusCode,
+        error: STATUS_CODES[statusCode] ?? "Error",
+        message: publicErrorMessage(error)
+      });
+    }
+
+    const errorId = request.id;
+    request.log.error({ err: error, errorId }, "Unhandled request error");
+    return reply.code(500).send({
+      statusCode: 500,
+      error: "Internal Server Error",
+      message: "Ocurrió un error interno. Intentá nuevamente.",
+      errorId
+    });
+  });
 
   app.get("/health", async () => ({ status: "ok" as const }));
 
