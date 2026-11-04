@@ -102,15 +102,32 @@ describe("n8n Telegram workflow template", () => {
     });
   });
 
-  it("routes capture and decision request errors back to Telegram", async () => {
-    const workflow = await loadWorkflow();
-    expect(workflow.nodes.find((node) => node.name === "Capture expense")?.onError).toBe(
-      "continueErrorOutput"
-    );
-    expect(workflow.nodes.find((node) => node.name === "Apply decision")?.onError).toBe(
-      "continueErrorOutput"
-    );
-    expect(workflow.connections["Capture expense"]?.main[1]?.[0]?.node).toBe("Explain error");
-    expect(workflow.connections["Apply decision"]?.main[1]?.[0]?.node).toBe("Explain error");
-  });
+  it.each([
+    ["self-hosted", "telegram-expense-workflow.json"],
+    ["n8n Cloud", "telegram-expense-workflow-cloud.json"]
+  ])(
+    "relays API validation messages and reserves the generic error for transport failures in %s",
+    async (_runtime, filename) => {
+      const workflow = await loadWorkflow(filename);
+      const capture = workflow.nodes.find((node) => node.name === "Capture expense");
+      const decision = workflow.nodes.find((node) => node.name === "Apply decision");
+
+      expect(capture?.parameters).toMatchObject({
+        options: { response: { response: { neverError: true, responseFormat: "json" } } }
+      });
+      expect(decision?.parameters).toMatchObject({
+        options: { response: { response: { neverError: true, responseFormat: "json" } } }
+      });
+      expect(capture?.onError).toBe("continueErrorOutput");
+      expect(decision?.onError).toBe("continueErrorOutput");
+      expect(workflow.connections["Capture expense"]?.main[1]?.[0]?.node).toBe("Explain error");
+      expect(workflow.connections["Apply decision"]?.main[1]?.[0]?.node).toBe("Explain error");
+      expect(workflow.nodes.find((node) => node.name === "Explain outcome")?.parameters).toMatchObject({
+        text: "={{ $json.message }}"
+      });
+      expect(workflow.nodes.find((node) => node.name === "Explain decision")?.parameters).toMatchObject({
+        text: "={{ $json.message }}"
+      });
+    }
+  );
 });
