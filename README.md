@@ -62,7 +62,14 @@ INSERT INTO payment_methods (workspace_id, code, label, enabled)
 VALUES ('10000000-0000-4000-8000-000000000001', 'card', 'Tarjeta', true);
 ```
 
-`code` is the canonical value stored on transactions; `label` is the maintained user-facing value. Capture processing accepts an enabled method only when its extracted value matches exactly one enabled code or label in that workspace (case- and accent-insensitively); ambiguous matches are rejected and no transaction is created. Disable a method with `UPDATE payment_methods SET enabled = false, updated_at = now() WHERE workspace_id = '<workspace UUID>' AND code = '<code>';`.
+`id` is a database-generated UUID; `code` is the canonical value stored on transactions; `label` is the maintained user-facing value. Transactions have a database foreign key from `(workspace_id, payment_method)` to `(workspace_id, code)`, so provision the matching workspace catalog row before inserting a transaction. Capture processing accepts an enabled method only when its extracted value matches exactly one enabled code or label in that workspace (case- and accent-insensitively); ambiguous matches are rejected and no transaction is created. Disable a method with `UPDATE payment_methods SET enabled = false, updated_at = now() WHERE workspace_id = '<workspace UUID>' AND code = '<code>';`.
+
+Migration `0003_payment_method_catalog` adds the transaction foreign key as `NOT VALID`, so it enforces new writes without rejecting historical transactions that predate catalog provisioning. After provisioning every historical `(workspace_id, payment_method)` pair, validate it manually:
+
+```sql
+ALTER TABLE transactions
+  VALIDATE CONSTRAINT transactions_workspace_payment_method_fk;
+```
 
 ## Confirm or cancel
 

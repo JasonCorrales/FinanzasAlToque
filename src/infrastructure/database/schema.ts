@@ -76,6 +76,7 @@ export const confirmationPolicies = pgTable(
 export const paymentMethods = pgTable(
   "payment_methods",
   {
+    id: uuid("id").defaultRandom().primaryKey(),
     workspaceId: uuid("workspace_id").notNull(),
     code: text("code").notNull(),
     label: text("label").notNull(),
@@ -111,6 +112,11 @@ export const transactions = pgTable(
       name: "transactions_workspace_capture_fk",
       columns: [table.workspaceId, table.captureId],
       foreignColumns: [captures.workspaceId, captures.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "transactions_workspace_payment_method_fk",
+      columns: [table.workspaceId, table.paymentMethod],
+      foreignColumns: [paymentMethods.workspaceId, paymentMethods.code]
     }).onDelete("restrict"),
     uniqueIndex("transactions_capture_uq").on(table.captureId),
     check("transactions_type_check", sql`${table.transactionType} = 'expense'`),

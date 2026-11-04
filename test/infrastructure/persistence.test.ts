@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle, type PgliteDatabase } from "drizzle-orm/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -25,6 +27,89 @@ afterEach(async () => {
 });
 
 describe("PostgreSQL repositories", () => {
+  it("preserves historical payment methods while enforcing the workspace catalog for new transactions", async () => {
+    const preMigrationClient = new PGlite();
+    const migration = async (name: string) =>
+      preMigrationClient.exec(await readFile(new URL(`../../migrations/${name}`, import.meta.url), "utf8"));
+    const historicalWorkspaceId = "10000000-0000-4000-8000-000000000010";
+    const foreignWorkspaceId = "10000000-0000-4000-8000-000000000011";
+    const insertCapture = (id: string, workspace: string) =>
+      preMigrationClient.exec(`
+        INSERT INTO captures (id, workspace_id, external_message_id, channel, raw_message, status)
+        VALUES ('${id}', '${workspace}', '${id}', 'telegram', 'historical capture', 'processed');
+      `);
+    const insertTransaction = (id: string, workspace: string, captureId: string, paymentMethod: string) =>
+      preMigrationClient.exec(`
+        INSERT INTO transactions (
+          id, workspace_id, capture_id, transaction_type, amount, currency, concept,
+          payment_method, status, confidence
+        ) VALUES (
+          '${id}', '${workspace}', '${captureId}', 'expense', 1, 'CRC', 'Test',
+          '${paymentMethod}', 'registered', 1
+        );
+      `);
+
+    try {
+      await migration("0001_initial.sql");
+      await migration("0002_transaction_cancellation.sql");
+      await insertCapture("20000000-0000-4000-8000-000000000100", historicalWorkspaceId);
+      await insertTransaction(
+        "40000000-0000-4000-8000-000000000100",
+        historicalWorkspaceId,
+        "20000000-0000-4000-8000-000000000100",
+        "legacy-card"
+      );
+
+      await migration("0003_payment_method_catalog.sql");
+
+      const catalogId = await preMigrationClient.query<{ id: string }>(
+        "INSERT INTO payment_methods (workspace_id, code, label) VALUES ('10000000-0000-4000-8000-000000000010', 'card', 'Tarjeta') RETURNING id;"
+      );
+      expect(catalogId.rows[0]?.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+      await expect(
+        preMigrationClient.exec(
+          "ALTER TABLE transactions VALIDATE CONSTRAINT transactions_workspace_payment_method_fk;"
+        )
+      ).rejects.toThrow();
+
+      await insertCapture("20000000-0000-4000-8000-000000000101", historicalWorkspaceId);
+      await expect(
+        insertTransaction(
+          "40000000-0000-4000-8000-000000000101",
+          historicalWorkspaceId,
+          "20000000-0000-4000-8000-000000000101",
+          "missing"
+        )
+      ).rejects.toThrow();
+
+      await insertCapture("20000000-0000-4000-8000-000000000102", historicalWorkspaceId);
+      await insertTransaction(
+        "40000000-0000-4000-8000-000000000102",
+        historicalWorkspaceId,
+        "20000000-0000-4000-8000-000000000102",
+        "card"
+      );
+
+      await insertCapture("20000000-0000-4000-8000-000000000103", foreignWorkspaceId);
+      await expect(
+        insertTransaction(
+          "40000000-0000-4000-8000-000000000103",
+          foreignWorkspaceId,
+          "20000000-0000-4000-8000-000000000103",
+          "card"
+        )
+      ).rejects.toThrow();
+
+      await preMigrationClient.exec(`
+        INSERT INTO payment_methods (workspace_id, code, label)
+        VALUES ('${historicalWorkspaceId}', 'legacy-card', 'Legacy card');
+        ALTER TABLE transactions VALIDATE CONSTRAINT transactions_workspace_payment_method_fk;
+      `);
+    } finally {
+      await preMigrationClient.close();
+    }
+  });
+
   it("applies the same versioned migration more than once without changing existing state", async () => {
     const captures = new DrizzleCaptureRepository(db);
     await captures.createOrGet({
@@ -141,6 +226,12 @@ describe("PostgreSQL repositories", () => {
       rawMessage: "Gaste 15.000 colones en Gasolina pague con Tarjeta",
       status: "processed"
     });
+    await db.insert(schema.paymentMethods).values({
+      workspaceId,
+      code: "card",
+      label: "Tarjeta"
+    });
+
     const transaction = {
       id: "40000000-0000-4000-8000-000000000001",
       workspaceId,
