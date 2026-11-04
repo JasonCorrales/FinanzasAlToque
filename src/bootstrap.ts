@@ -8,6 +8,7 @@ import { buildApp } from "./http-app.js";
 import { SpanishExpenseInterpreter } from "./infrastructure/interpreters/spanish-expense-interpreter.js";
 import { DrizzleCaptureRepository } from "./infrastructure/repositories/drizzle-capture-repository.js";
 import { DrizzleConfirmationPolicyRepository } from "./infrastructure/repositories/drizzle-confirmation-policy-repository.js";
+import { DrizzlePaymentMethodCatalogRepository } from "./infrastructure/repositories/drizzle-payment-method-catalog-repository.js";
 import { DrizzleTransactionRepository } from "./infrastructure/repositories/drizzle-transaction-repository.js";
 import type { FinanceDatabase } from "./infrastructure/repositories/database.js";
 
@@ -25,6 +26,7 @@ export function buildProductionApp(
     captures: new DrizzleCaptureRepository(db),
     transactions,
     confirmationPolicies: new DrizzleConfirmationPolicyRepository(db),
+    paymentMethods: new DrizzlePaymentMethodCatalogRepository(db),
     interpreter: new SpanishExpenseInterpreter(),
     nextId
   });

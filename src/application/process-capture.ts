@@ -5,6 +5,7 @@ import type {
   CaptureRepository,
   ConfirmationPolicyRepository,
   MessageInterpreter,
+  PaymentMethodCatalogRepository,
   TransactionRecord,
   TransactionRepository
 } from "./ports.js";
@@ -13,6 +14,7 @@ interface Dependencies {
   captures: CaptureRepository;
   transactions: TransactionRepository;
   confirmationPolicies: ConfirmationPolicyRepository;
+  paymentMethods: PaymentMethodCatalogRepository;
   interpreter: MessageInterpreter;
   nextId: () => string;
 }
@@ -64,11 +66,24 @@ export class ProcessCapture {
       };
     }
 
+    const paymentMethod = await this.dependencies.paymentMethods.findEnabled(
+      input.workspaceId,
+      interpretation.paymentMethod
+    );
+    if (!paymentMethod) {
+      return {
+        status: "needs_information",
+        message: "No registré el gasto. Falta un medio de pago válido.",
+        missingFields: ["paymentMethod"],
+        duplicate: false
+      };
+    }
+
     const draft = ExpenseDraft.create({
       rawMessage: input.message,
       money: Money.fromDecimal(interpretation.amount, interpretation.currency),
       concept: interpretation.concept,
-      paymentMethod: interpretation.paymentMethod,
+      paymentMethod: paymentMethod.code,
       sourceChannel: input.channel,
       confidence: interpretation.confidence
     });

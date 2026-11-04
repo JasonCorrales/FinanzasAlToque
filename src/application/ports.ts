@@ -32,6 +32,13 @@ export interface ConfirmationPolicyRecord {
   version?: number;
 }
 
+export interface PaymentMethodRecord {
+  workspaceId: string;
+  code: string;
+  label: string;
+  enabled: boolean;
+}
+
 export interface CaptureRepository {
   createOrGet(input: CaptureRecord): Promise<CaptureRecord>;
 }
@@ -54,6 +61,10 @@ export interface ConfirmationPolicyRepository {
     workspaceId: string,
     channel: CaptureChannel
   ): Promise<ConfirmationPolicyRecord | null>;
+}
+
+export interface PaymentMethodCatalogRepository {
+  findEnabled(workspaceId: string, codeOrLabel: string): Promise<PaymentMethodRecord | null>;
 }
 
 export type InterpretationResult =

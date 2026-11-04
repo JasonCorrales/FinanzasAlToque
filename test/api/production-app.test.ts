@@ -18,6 +18,12 @@ describe("production application composition", () => {
     clients.push(client);
     await applyMigrations(client);
     const db = drizzle(client, { schema });
+    await db.insert(schema.paymentMethods).values({
+      workspaceId: "10000000-0000-4000-8000-000000000001",
+      code: "card",
+      label: "Tarjeta",
+      enabled: true
+    });
     let sequence = 0;
     const app = buildProductionApp(db, {
       logger: false,
@@ -51,6 +57,32 @@ describe("production application composition", () => {
     expect(decision.json()).toEqual({
       status: "registered",
       message: "Gasto confirmado: ₡15.000 CRC en Gasolina."
+    });
+    await app.close();
+  });
+
+  it("rejects captures until the workspace catalog is manually provisioned", async () => {
+    const client = new PGlite();
+    clients.push(client);
+    await applyMigrations(client);
+    const db = drizzle(client, { schema });
+    const app = buildProductionApp(db, { logger: false });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/captures",
+      payload: {
+        workspaceId: "10000000-0000-4000-8000-000000000001",
+        externalMessageId: "telegram-production-catalog-empty",
+        channel: "telegram",
+        message: "Gaste 15.000 colones en Gasolina pague con Tarjeta"
+      }
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json()).toMatchObject({
+      status: "needs_information",
+      missingFields: ["paymentMethod"]
     });
     await app.close();
   });

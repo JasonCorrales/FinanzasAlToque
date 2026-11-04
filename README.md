@@ -53,6 +53,17 @@ The accepted example is normalized to an expense for `15000` `CRC`, concept `Gas
 
 The idempotency key is `(workspaceId, channel, externalMessageId)`. Concurrent repeated deliveries converge on one transaction.
 
+## Payment-method catalog provisioning
+
+Payment methods are workspace-scoped records in `payment_methods`. The catalog starts empty: the application does not seed default methods and has no administrative API for them. Provision each workspace directly in the database before accepting captures. For example:
+
+```sql
+INSERT INTO payment_methods (workspace_id, code, label, enabled)
+VALUES ('10000000-0000-4000-8000-000000000001', 'card', 'Tarjeta', true);
+```
+
+`code` is the canonical value stored on transactions; `label` is the maintained user-facing value. Capture processing accepts an enabled method only when its extracted value matches exactly one enabled code or label in that workspace (case- and accent-insensitively); ambiguous matches are rejected and no transaction is created. Disable a method with `UPDATE payment_methods SET enabled = false, updated_at = now() WHERE workspace_id = '<workspace UUID>' AND code = '<code>';`.
+
 ## Confirm or cancel
 
 `POST /v1/transactions/:transactionId/decision`

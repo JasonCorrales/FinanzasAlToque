@@ -6,6 +6,7 @@ import { applyMigrations } from "../../src/infrastructure/database/migrate.js";
 import * as schema from "../../src/infrastructure/database/schema.js";
 import { DrizzleCaptureRepository } from "../../src/infrastructure/repositories/drizzle-capture-repository.js";
 import { DrizzleConfirmationPolicyRepository } from "../../src/infrastructure/repositories/drizzle-confirmation-policy-repository.js";
+import { DrizzlePaymentMethodCatalogRepository } from "../../src/infrastructure/repositories/drizzle-payment-method-catalog-repository.js";
 import { DrizzleTransactionRepository } from "../../src/infrastructure/repositories/drizzle-transaction-repository.js";
 
 const workspaceId = "10000000-0000-4000-8000-000000000001";
@@ -59,6 +60,46 @@ describe("PostgreSQL repositories", () => {
 
     expect(repeated.id).toBe(first.id);
     expect(await repository.count()).toBe(1);
+  });
+
+  it("resolves only enabled workspace catalog methods by normalized code or label", async () => {
+    const repository = new DrizzlePaymentMethodCatalogRepository(db);
+
+    expect(await repository.findEnabled(workspaceId, "Tarjeta")).toBeNull();
+
+    await db.insert(schema.paymentMethods).values([
+      { workspaceId, code: "card", label: "Tarjeta", enabled: true },
+      { workspaceId, code: "sinpe", label: "Sinpe Móvil", enabled: true },
+      { workspaceId, code: "cash", label: "Efectivo", enabled: false },
+      {
+        workspaceId: "10000000-0000-4000-8000-000000000099",
+        code: "foreign-card",
+        label: "Tarjeta extranjera",
+        enabled: true
+      }
+    ]);
+
+    await expect(repository.findEnabled(workspaceId, " CARD ")).resolves.toMatchObject({
+      code: "card",
+      label: "Tarjeta"
+    });
+    await expect(repository.findEnabled(workspaceId, "sinpe movil")).resolves.toMatchObject({
+      code: "sinpe",
+      label: "Sinpe Móvil"
+    });
+    await expect(repository.findEnabled(workspaceId, "Efectivo")).resolves.toBeNull();
+    await expect(repository.findEnabled(workspaceId, "Tarjeta extranjera")).resolves.toBeNull();
+  });
+
+  it("fails closed when normalized code or label matches more than one enabled catalog method", async () => {
+    const repository = new DrizzlePaymentMethodCatalogRepository(db);
+
+    await db.insert(schema.paymentMethods).values([
+      { workspaceId, code: "card", label: "Tarjeta", enabled: true },
+      { workspaceId, code: "tarjeta", label: "Crédito", enabled: true }
+    ]);
+
+    await expect(repository.findEnabled(workspaceId, "Tarjeta")).resolves.toBeNull();
   });
 
   it("upserts one confirmation policy per workspace and channel", async () => {
