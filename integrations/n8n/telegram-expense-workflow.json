@@ -31,7 +31,14 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { workspaceId: $env.FINANCE_WORKSPACE_ID, externalMessageId: String($json.message.message_id), channel: 'telegram', message: $json.message.text } }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "capture-expense",
       "name": "Capture expense",
@@ -88,7 +95,14 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ { workspaceId: $env.FINANCE_WORKSPACE_ID, action: $json.callback_query.data.split(':')[0] } }}",
-        "options": {}
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
       },
       "id": "apply-decision",
       "name": "Apply decision",
