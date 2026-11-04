@@ -50,6 +50,20 @@ The accepted example is normalized to an expense for `15000` `CRC`, concept `Gas
 | Existing delivery | 200 | `duplicate: true`; no second transaction was created. |
 | `needs_information` | 422 | Required fields are listed; no transaction was created. |
 | `rejected` | 400 | The request contract was invalid. |
+| Internal failure | 500 | The response is sanitized and includes a correlation `errorId`; internal details stay in server logs. |
+
+Unexpected server failures return a stable public contract without SQL, parameters, stack traces, or infrastructure details:
+
+```json
+{
+  "statusCode": 500,
+  "error": "Internal Server Error",
+  "message": "Ocurrió un error interno. Intentá nuevamente.",
+  "errorId": "request-correlation-id"
+}
+```
+
+Use `errorId` to correlate the client or Telegram report with the detailed server log entry. Expected 4xx validation and business responses keep their specific public messages.
 
 The idempotency key is `(workspaceId, channel, externalMessageId)`. Concurrent repeated deliveries converge on one transaction.
 
@@ -124,7 +138,7 @@ npm audit
 git diff --check
 ```
 
-Persistence and production-composition tests use isolated PGlite state; production uses PostgreSQL through `pg` and Drizzle. Tests cover the accepted message, missing fields, sequential and concurrent duplicates, tenant isolation, repeat-safe migrations, channel policies, confirm/cancel decisions, and n8n callback/error paths.
+Persistence and production-composition tests use isolated PGlite state; production uses PostgreSQL through `pg` and Drizzle. Tests cover the accepted message, missing fields, sequential and concurrent duplicates, tenant isolation, repeat-safe migrations, channel policies, confirm/cancel decisions, sanitized 500 responses with server-side correlation logs, and n8n callback/error paths.
 
 ## Current scope
 
