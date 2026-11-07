@@ -23,6 +23,7 @@ export interface ProcessCaptureInput {
   workspaceId: string;
   externalMessageId: string;
   channel: CaptureChannel;
+  origin?: "text" | "voice" | undefined;
   message: string;
 }
 
@@ -105,7 +106,7 @@ export class ProcessCapture {
       currency: values.currency,
       concept: values.concept,
       paymentMethod: values.paymentMethod,
-      status: policy.decide(values.confidence),
+      status: input.origin === "voice" ? "pending_confirmation" : policy.decide(values.confidence),
       confidence: values.confidence.toFixed(4)
     });
     return this.success(saved.transaction, !saved.created);
