@@ -13,10 +13,10 @@ Transcribe in n8n, require confirmation for voice-originated expenses, and avoid
 
 ## Tasks
 
-- **T1** — S1-S5 — Add public-contract RED tests for voice-origin metadata, mandatory confirmation, transcript-only processing, and unchanged text behavior. Route: delegated writer (context backstop). Status: done (RED observed). Commit: pending.
-- **T2** — S4-S5 — Extend the capture contract minimally so voice-originated transcripts always require confirmation without storing audio or changing text capture policy. Route: inline. Status: done. Commit: pending.
-- **T3** — S2-S3, S5 — Extend both n8n Telegram workflow templates to reject voice notes over two minutes, download and transcribe accepted notes with OpenAI, preserve Telegram message idempotency, and reuse the existing capture/result paths. Route: inline. Status: in progress. Commit: pending.
-- **T4** — S1-S5 — Document setup, limits, privacy, and failure behavior; assess the diff and run focused, full, type, build, structural, and differential checks. Route: inline assessment and checks. Status: pending. Commit: pending.
+- **T1** — S1-S5 — Add public-contract RED tests for voice-origin metadata, mandatory confirmation, transcript-only processing, and unchanged text behavior. Route: delegated writer (context backstop). Status: done (RED observed). Commit: `ddc4c6f`.
+- **T2** — S4-S5 — Extend the capture contract minimally so voice-originated transcripts always require confirmation without storing audio or changing text capture policy. Route: inline. Status: done. Commit: `ddc4c6f`.
+- **T3** — S2-S3, S5 — Extend both n8n Telegram workflow templates to reject voice notes over two minutes, download and transcribe accepted notes with OpenAI, preserve Telegram message idempotency, and reuse the existing capture/result paths. Route: delegated writer (context backstop). Status: done. Commit: pending.
+- **T4** — S1-S5 — Document setup, limits, privacy, and failure behavior; assess the diff and run focused, full, type, build, structural, and differential checks. Route: inline assessment and checks. Status: in progress. Commit: pending.
 
 ## Log
 
@@ -27,3 +27,4 @@ Transcribe in n8n, require confirmation for voice-originated expenses, and avoid
 - **L5** — Selected: “Solo el texto transcripto (recomendado)”.
 - **L6** — T1 RED: `npm test -- test/api/captures.test.ts` exited 1 with 1 failed and 11 passed; a voice-originated transcript was incorrectly `registered` under the existing `never_confirm` Telegram policy instead of `pending_confirmation`. The unchanged text regression passed.
 - **L7** — T2 GREEN: the capture API accepts optional `origin: "voice"`; voice transcripts force `pending_confirmation` while omitted/text origin still follows the existing Telegram policy. Focused API tests passed 12/12 and typecheck passed after accounting for exact optional property types.
+- **L8** — T3 RED/GREEN: eight new structural workflow assertions initially failed. Both templates now route voice updates separately, reject durations over 120 seconds before download, download through Telegram File/Get, transcribe Spanish audio through the importable `@n8n/n8n-nodes-langchain.openAi` node, send only transcript plus `origin: "voice"`, preserve `message_id`, and use a voice-specific pre-API failure message. Focused workflow tests passed 14/14; JSON parsing and diff checks passed. Live n8n import/execution remains pending.
