@@ -1,6 +1,6 @@
 # Finanzas al Toque
 
-Finanzas al Toque is a text-first personal-finance MVP. A user sends a Spanish expense message to Telegram; n8n forwards it to a Fastify API; the backend interprets, validates, deduplicates, and persists the transaction in PostgreSQL; Telegram explains the outcome and, when required, offers **Confirm** and **Cancel** actions.
+Finanzas al Toque is a Telegram-first personal-finance MVP. A user sends a Spanish expense as text or a short voice note; n8n transcribes voice with OpenAI and forwards only text to a Fastify API; the backend interprets, validates, deduplicates, and persists the transaction in PostgreSQL. Telegram explains the outcome and, when required, offers **Confirm** and **Cancel** actions.
 
 ## Quick path
 
@@ -21,8 +21,9 @@ Finanzas al Toque is a text-first personal-finance MVP. A user sends a Spanish e
 5. Import the workflow that matches the n8n runtime:
    - n8n Cloud: `integrations/n8n/telegram-expense-workflow-cloud.json`;
    - self-hosted n8n: `integrations/n8n/telegram-expense-workflow.json`.
-6. Configure the same Telegram credential on the single trigger node and all Telegram action nodes. The trigger subscribes to both messages and callback queries, avoiding Telegram's one-webhook-per-bot conflict.
-7. Configure the finance API values:
+6. Configure the same Telegram credential on the trigger, file-download, and Telegram action nodes. The trigger subscribes to both messages and callback queries, avoiding Telegram's one-webhook-per-bot conflict.
+7. Configure an OpenAI credential on **Transcribe voice note**.
+8. Configure the finance API values:
    - n8n Cloud custom variables: `FINANCE_API_URL` and `FINANCE_WORKSPACE_ID` (the Cloud template reads them through `$vars`);
    - self-hosted environment variables: `FINANCE_API_URL` and `FINANCE_WORKSPACE_ID` (the self-hosted template reads them through `$env`).
 
@@ -37,11 +38,12 @@ For n8n Cloud, `FINANCE_API_URL` must be a publicly reachable HTTPS URL. A self-
   "workspaceId": "10000000-0000-4000-8000-000000000001",
   "externalMessageId": "telegram-42",
   "channel": "telegram",
+  "origin": "text",
   "message": "Gaste 15.000 colones en Gasolina pague con Tarjeta"
 }
 ```
 
-The accepted example is normalized to an expense for `15000` `CRC`, concept `Gasolina`, and payment method `card`. The original message is retained with the capture.
+The optional `origin` accepts `text` or `voice` and defaults to text behavior when omitted. The accepted example is normalized to an expense for `15000` `CRC`, concept `Gasolina`, and payment method `card`. The original text or transcript is retained with the capture.
 
 | Result | HTTP | Meaning |
 |---|---:|---|
@@ -66,6 +68,20 @@ Unexpected server failures return a stable public contract without SQL, paramete
 Use `errorId` to correlate the client or Telegram report with the detailed server log entry. Expected 4xx validation and business responses keep their specific public messages.
 
 The idempotency key is `(workspaceId, channel, externalMessageId)`. Concurrent repeated deliveries converge on one transaction.
+
+## Capture a voice expense
+
+Send a Telegram voice note of at most **2 minutes** using the same Spanish phrasing accepted for text expenses. The workflow:
+
+1. rejects longer notes before downloading them;
+2. downloads the Telegram voice file transiently;
+3. transcribes it in Spanish through OpenAI;
+4. sends only the transcript to `POST /v1/captures` with `origin: "voice"` and the original Telegram `message_id`;
+5. always asks the user to **Confirm** or **Cancel**, regardless of the configured Telegram text policy.
+
+The application stores the transcript as the capture's original message; it does not send audio, file IDs, blobs, or file metadata to the finance API or PostgreSQL. Telegram, n8n, and OpenAI still process the audio, so operators must configure their execution-history and provider-retention settings according to their privacy policy.
+
+Download or transcription failures return `No pude descargar o transcribir la nota de voz. Intentá nuevamente.` No transaction API call is made on that failure path. If the transcript lacks required expense fields, the existing `needs_information` response explains what is missing.
 
 ## Payment-method catalog provisioning
 
@@ -113,7 +129,7 @@ Correction is intentionally outside this MVP action flow. The user sends a new T
 | Application | Capture and decision use cases expressed through ports |
 | Infrastructure | PostgreSQL/Drizzle repositories, migrations, and Spanish interpreter |
 | API | HTTP validation and outcome/status mapping |
-| n8n | Telegram transport, buttons, callbacks, and error replies |
+| n8n | Telegram text/voice routing, transient audio download, OpenAI transcription, buttons, callbacks, and error replies |
 
 The interpreter never writes directly to the database. The backend is the authority for validation, tenant isolation, idempotency, confirmation policy, transitions, and persistence. The current deterministic Spanish interpreter is replaceable through the `MessageInterpreter` port by an AI-backed adapter later.
 
@@ -138,10 +154,10 @@ npm audit
 git diff --check
 ```
 
-Persistence and production-composition tests use isolated PGlite state; production uses PostgreSQL through `pg` and Drizzle. Tests cover the accepted message, missing fields, sequential and concurrent duplicates, tenant isolation, repeat-safe migrations, channel policies, confirm/cancel decisions, sanitized 500 responses with server-side correlation logs, and n8n callback/error paths.
+Persistence and production-composition tests use isolated PGlite state; production uses PostgreSQL through `pg` and Drizzle. Tests cover text and voice-originated captures, missing fields, sequential and concurrent duplicates, tenant isolation, repeat-safe migrations, channel policies, mandatory voice confirmation, confirm/cancel decisions, sanitized 500 responses with server-side correlation logs, and n8n text/voice/callback/error paths.
 
 ## Current scope
 
-Included: Telegram text capture, PostgreSQL persistence, channel confirmation policies, idempotency, Confirm/Cancel callbacks, and explanatory responses.
+Included: Telegram text capture, Telegram voice notes up to two minutes transcribed by OpenAI in n8n, transcript-only backend persistence, mandatory voice confirmation, PostgreSQL persistence, channel confirmation policies for text, idempotency, Confirm/Cancel callbacks, and explanatory responses.
 
-Excluded: audio, images, OCR, other messaging channels, bank synchronization, dashboards, billing, correction callbacks, and a generalized AI interpreter.
+Excluded: audio-file uploads, backend audio storage, transcript editing, images, OCR, other messaging channels, bank synchronization, dashboards, billing, correction callbacks, and a generalized AI expense interpreter.
