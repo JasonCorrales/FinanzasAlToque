@@ -133,6 +133,42 @@ describe("POST /v1/captures", () => {
     await app.close();
   });
 
+  it("always requires confirmation for a voice-originated transcript without audio metadata", async () => {
+    const { app, store } = createTestApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/v1/captures",
+      payload: { ...validPayload, externalMessageId: "telegram-voice-42", origin: "voice" }
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      status: "pending_confirmation",
+      actions: ["confirm", "cancel"],
+      transaction: { status: "pending_confirmation" }
+    });
+    expect([...store.transactions.values()][0]?.status).toBe("pending_confirmation");
+    expect([...store.captures.values()][0]).not.toHaveProperty("audio");
+    expect([...store.captures.values()][0]).not.toHaveProperty("blob");
+    expect([...store.captures.values()][0]).not.toHaveProperty("file");
+    await app.close();
+  });
+
+  it("keeps text-originated capture registration unchanged under the Telegram policy", async () => {
+    const { app, store } = createTestApp();
+
+    const response = await app.inject({ method: "POST", url: "/v1/captures", payload: validPayload });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toMatchObject({
+      status: "registered",
+      transaction: { status: "registered" }
+    });
+    expect([...store.transactions.values()][0]?.status).toBe("registered");
+    await app.close();
+  });
+
   it("does not duplicate a transaction when Telegram delivers the same message twice", async () => {
     const { app, store } = createTestApp();
 

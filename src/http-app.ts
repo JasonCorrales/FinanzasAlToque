@@ -15,6 +15,7 @@ const captureSchema = z.object({
   workspaceId: z.string().uuid(),
   externalMessageId: z.string().min(1),
   channel: z.literal("telegram"),
+  origin: z.enum(["text", "voice"]).optional(),
   message: z.string().min(1)
 });
 

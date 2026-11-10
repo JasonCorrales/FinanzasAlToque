@@ -72,6 +72,9 @@ describe("n8n Telegram workflow template", () => {
         "Apply decision"
       );
       expect(workflow.connections["Route Telegram update"]?.main[1]?.[0]?.node).toBe(
+        "Route voice message"
+      );
+      expect(workflow.connections["Route voice message"]?.main[1]?.[0]?.node).toBe(
         "Capture expense"
       );
       expect(decision?.parameters).toMatchObject({
@@ -130,4 +133,88 @@ describe("n8n Telegram workflow template", () => {
       });
     }
   );
+
+  it.each([
+    ["self-hosted", "telegram-expense-workflow.json"],
+    ["n8n Cloud", "telegram-expense-workflow-cloud.json"]
+  ])("routes voice messages separately while preserving the text and callback routes in %s", async (_runtime, filename) => {
+    const workflow = await loadWorkflow(filename);
+    const voiceRouter = workflow.nodes.find((node) => node.name === "Route voice message");
+
+    expect(voiceRouter?.parameters).toMatchObject({
+      conditions: { conditions: [{ leftValue: "={{ $json.message.voice !== undefined }}", rightValue: true }] }
+    });
+    expect(workflow.connections["Route Telegram update"]?.main[0]?.[0]?.node).toBe("Apply decision");
+    expect(workflow.connections["Route Telegram update"]?.main[1]?.[0]?.node).toBe("Route voice message");
+    expect(workflow.connections["Route voice message"]?.main[0]?.[0]?.node).toBe("Check voice duration");
+    expect(workflow.connections["Route voice message"]?.main[1]?.[0]?.node).toBe("Capture expense");
+  });
+
+  it.each([
+    ["self-hosted", "telegram-expense-workflow.json"],
+    ["n8n Cloud", "telegram-expense-workflow-cloud.json"]
+  ])("rejects voice notes longer than two minutes before downloading them in %s", async (_runtime, filename) => {
+    const workflow = await loadWorkflow(filename);
+    const duration = workflow.nodes.find((node) => node.name === "Check voice duration");
+
+    expect(duration?.parameters).toMatchObject({
+      conditions: { conditions: [{ leftValue: "={{ $json.message.voice.duration }}", rightValue: 120 }] }
+    });
+    expect(workflow.connections["Check voice duration"]?.main[0]?.[0]?.node).toBe("Explain voice too long");
+    expect(workflow.connections["Check voice duration"]?.main[1]?.[0]?.node).toBe("Get voice file");
+    expect(workflow.nodes.find((node) => node.name === "Explain voice too long")?.parameters).toMatchObject({
+      text: expect.stringContaining("2 minutos")
+    });
+  });
+
+  it.each([
+    ["self-hosted", "telegram-expense-workflow.json"],
+    ["n8n Cloud", "telegram-expense-workflow-cloud.json"]
+  ])("downloads accepted voice notes and transcribes their data binary in Spanish in %s", async (_runtime, filename) => {
+    const workflow = await loadWorkflow(filename);
+    const download = workflow.nodes.find((node) => node.name === "Get voice file");
+    const transcribe = workflow.nodes.find((node) => node.name === "Transcribe voice note");
+
+    expect(download).toMatchObject({
+      type: "n8n-nodes-base.telegram",
+      parameters: {
+        resource: "file",
+        operation: "get",
+        fileId: "={{ $json.message.voice.file_id }}",
+        additionalFields: { download: true }
+      }
+    });
+    expect(transcribe).toMatchObject({
+      type: "@n8n/n8n-nodes-langchain.openAi",
+      parameters: {
+        resource: "audio",
+        operation: "transcribe",
+        binaryPropertyName: "data",
+        options: { language: "es" }
+      }
+    });
+    expect(workflow.connections["Get voice file"]?.main[0]?.[0]?.node).toBe("Transcribe voice note");
+  });
+
+  it.each([
+    ["self-hosted", "telegram-expense-workflow.json", "$env"],
+    ["n8n Cloud", "telegram-expense-workflow-cloud.json", "$vars"]
+  ])("sends only the voice transcript to capture and uses a voice-specific processing failure in %s", async (_runtime, filename, variables) => {
+    const workflow = await loadWorkflow(filename);
+    const capture = workflow.nodes.find((node) => node.name === "Capture voice expense");
+    const voiceError = workflow.nodes.find((node) => node.name === "Explain voice processing error");
+
+    expect(capture?.parameters).toMatchObject({
+      method: "POST",
+      url: `={{ ${variables}.FINANCE_API_URL + '/v1/captures' }}`,
+      jsonBody: `={{ { workspaceId: ${variables}.FINANCE_WORKSPACE_ID, externalMessageId: String($('Telegram update').item.json.message.message_id), channel: 'telegram', origin: 'voice', message: $json.text } }}`
+    });
+    expect(workflow.connections["Transcribe voice note"]?.main[0]?.[0]?.node).toBe("Capture voice expense");
+    expect(workflow.connections["Get voice file"]?.main[1]?.[0]?.node).toBe("Explain voice processing error");
+    expect(workflow.connections["Transcribe voice note"]?.main[1]?.[0]?.node).toBe("Explain voice processing error");
+    expect(voiceError?.parameters).toMatchObject({
+      text: expect.stringContaining("nota de voz")
+    });
+    expect(voiceError?.parameters.text).not.toContain("No se registró ningún cambio");
+  });
 });

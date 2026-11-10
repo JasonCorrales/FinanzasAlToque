@@ -26,6 +26,76 @@
     },
     {
       "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [{ "leftValue": "={{ $json.message.voice !== undefined }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "route-voice-message",
+      "name": "Route voice message",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [460, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [{ "leftValue": "={{ $json.message.voice.duration }}", "rightValue": 120, "operator": { "type": "number", "operation": "larger" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-voice-duration",
+      "name": "Check voice duration",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [700, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram update').item.json.message.chat.id }}",
+        "text": "Solo puedo procesar notas de voz de hasta 2 minutos.",
+        "additionalFields": {}
+      },
+      "id": "explain-voice-too-long",
+      "name": "Explain voice too long",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [940, -80]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.voice.file_id }}",
+        "additionalFields": { "download": true }
+      },
+      "id": "get-voice-file",
+      "name": "Get voice file",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [940, 60],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "data",
+        "options": { "language": "es" }
+      },
+      "id": "transcribe-voice-note",
+      "name": "Transcribe voice note",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [1180, 60],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "={{ $vars.FINANCE_API_URL + '/v1/captures' }}",
         "sendBody": true,
@@ -45,6 +115,29 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [460, 100],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $vars.FINANCE_API_URL + '/v1/captures' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { workspaceId: $vars.FINANCE_WORKSPACE_ID, externalMessageId: String($('Telegram update').item.json.message.message_id), channel: 'telegram', origin: 'voice', message: $json.text } }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "capture-voice-expense",
+      "name": "Capture voice expense",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1420, 60],
       "onError": "continueErrorOutput"
     },
     {
@@ -125,6 +218,18 @@
     },
     {
       "parameters": {
+        "chatId": "={{ $('Telegram update').item.json.message.chat.id }}",
+        "text": "No pude descargar o transcribir la nota de voz. Intentá nuevamente.",
+        "additionalFields": {}
+      },
+      "id": "explain-voice-processing-error",
+      "name": "Explain voice processing error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1420, -80]
+    },
+    {
+      "parameters": {
         "chatId": "={{ $('Telegram update').item.json.callback_query ? $('Telegram update').item.json.callback_query.message.chat.id : $('Telegram update').item.json.message.chat.id }}",
         "text": "No pude procesar la operación. No se registró ningún cambio; intentá nuevamente.",
         "additionalFields": {}
@@ -138,8 +243,13 @@
   ],
   "connections": {
     "Telegram update": { "main": [[{ "node": "Route Telegram update", "type": "main", "index": 0 }]] },
-    "Route Telegram update": { "main": [[{ "node": "Apply decision", "type": "main", "index": 0 }], [{ "node": "Capture expense", "type": "main", "index": 0 }]] },
+    "Route Telegram update": { "main": [[{ "node": "Apply decision", "type": "main", "index": 0 }], [{ "node": "Route voice message", "type": "main", "index": 0 }]] },
+    "Route voice message": { "main": [[{ "node": "Check voice duration", "type": "main", "index": 0 }], [{ "node": "Capture expense", "type": "main", "index": 0 }]] },
+    "Check voice duration": { "main": [[{ "node": "Explain voice too long", "type": "main", "index": 0 }], [{ "node": "Get voice file", "type": "main", "index": 0 }]] },
+    "Get voice file": { "main": [[{ "node": "Transcribe voice note", "type": "main", "index": 0 }], [{ "node": "Explain voice processing error", "type": "main", "index": 0 }]] },
+    "Transcribe voice note": { "main": [[{ "node": "Capture voice expense", "type": "main", "index": 0 }], [{ "node": "Explain voice processing error", "type": "main", "index": 0 }]] },
     "Capture expense": { "main": [[{ "node": "Needs confirmation", "type": "main", "index": 0 }], [{ "node": "Explain error", "type": "main", "index": 0 }]] },
+    "Capture voice expense": { "main": [[{ "node": "Needs confirmation", "type": "main", "index": 0 }], [{ "node": "Explain error", "type": "main", "index": 0 }]] },
     "Needs confirmation": { "main": [[{ "node": "Explain pending", "type": "main", "index": 0 }], [{ "node": "Explain outcome", "type": "main", "index": 0 }]] },
     "Apply decision": { "main": [[{ "node": "Explain decision", "type": "main", "index": 0 }], [{ "node": "Explain error", "type": "main", "index": 0 }]] }
   },
