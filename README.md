@@ -101,6 +101,15 @@ ALTER TABLE transactions
   VALIDATE CONSTRAINT transactions_workspace_payment_method_fk;
 ```
 
+## Coope Ande bank-SMS pilot
+
+The API can register Coope Ande card-purchase SMS messages directly from a per-device iPhone Shortcut credential. Operators should follow the focused [Coope Ande iPhone Shortcut pilot guide](docs/bank-sms-iphone-shortcut.md) for provisioning, token handling, notifications, rotation, and rollback.
+
+| Operator action | Command or endpoint |
+|---|---|
+| View credential and template commands | `npm run bank-sms:admin -- --help` |
+| Receive a device-authenticated bank SMS | `POST /v1/bank-sms/captures` |
+
 ## Confirm or cancel
 
 `POST /v1/transactions/:transactionId/decision`
@@ -158,6 +167,6 @@ Persistence and production-composition tests use isolated PGlite state; producti
 
 ## Current scope
 
-Included: Telegram text capture, Telegram voice notes up to two minutes transcribed by OpenAI in n8n, transcript-only backend persistence, mandatory voice confirmation, PostgreSQL persistence, channel confirmation policies for text, idempotency, Confirm/Cancel callbacks, and explanatory responses.
+Included: Telegram text capture, Telegram voice notes up to two minutes transcribed by OpenAI in n8n, transcript-only backend persistence, mandatory voice confirmation, the Coope Ande iPhone bank-SMS pilot, PostgreSQL persistence, channel confirmation policies for text, idempotency, Confirm/Cancel callbacks, and explanatory responses.
 
-Excluded: audio-file uploads, backend audio storage, transcript editing, images, OCR, other messaging channels, bank synchronization, dashboards, billing, correction callbacks, and a generalized AI expense interpreter.
+Excluded: audio-file uploads, backend audio storage, transcript editing, images, OCR, other messaging channels, generalized bank synchronization beyond the Coope Ande SMS pilot, dashboards, billing, correction callbacks, and a generalized AI expense interpreter.
