@@ -31,7 +31,7 @@ export const captures = pgTable(
       table.channel,
       table.externalMessageId
     ),
-    check("captures_channel_check", sql`${table.channel} in ('telegram')`),
+    check("captures_channel_check", sql`${table.channel} in ('telegram', 'bank_sms')`),
     check("captures_status_check", sql`${table.status} in ('received', 'processed', 'rejected')`),
     check("captures_raw_message_check", sql`length(trim(${table.rawMessage})) > 0`)
   ]
@@ -125,6 +125,39 @@ export const bankSmsTemplates = pgTable(
       "bank_sms_templates_payment_method_check",
       sql`length(trim(${table.paymentMethod})) > 0`
     )
+  ]
+);
+
+export const bankSmsCaptureAudits = pgTable(
+  "bank_sms_capture_audits",
+  {
+    captureId: uuid("capture_id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    messageHash: text("message_hash").notNull(),
+    templateId: uuid("template_id").notNull(),
+    templateVersion: text("template_version").notNull(),
+    credentialId: uuid("credential_id").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    foreignKey({
+      name: "bank_sms_capture_audits_workspace_capture_fk",
+      columns: [table.workspaceId, table.captureId],
+      foreignColumns: [captures.workspaceId, captures.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "bank_sms_capture_audits_template_fk",
+      columns: [table.templateId],
+      foreignColumns: [bankSmsTemplates.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "bank_sms_capture_audits_credential_fk",
+      columns: [table.credentialId],
+      foreignColumns: [bankSmsDeviceCredentials.id]
+    }).onDelete("restrict"),
+    check("bank_sms_capture_audits_hash_check", sql`${table.messageHash} ~ '^sha256:v1:[a-f0-9]{64}$'`),
+    check("bank_sms_capture_audits_template_version_check", sql`length(trim(${table.templateVersion})) > 0`)
   ]
 );
 

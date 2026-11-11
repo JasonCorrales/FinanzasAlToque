@@ -125,6 +125,20 @@ export interface BankSmsTemplateRepository {
   resolveActive(workspaceId: string): Promise<BankSmsTemplateRecord | null>;
 }
 
+export interface BankSmsCaptureAuditRecord {
+  captureId: string;
+  workspaceId: string;
+  messageHash: string;
+  templateId: string;
+  templateVersion: string;
+  credentialId: string;
+  receivedAt: Date;
+}
+
+export interface BankSmsCaptureAuditRepository {
+  saveOrGetAudit(input: BankSmsCaptureAuditRecord): Promise<{ audit: BankSmsCaptureAuditRecord; created: boolean }>;
+}
+
 export type InterpretationResult =
   | {
       kind: "expense";

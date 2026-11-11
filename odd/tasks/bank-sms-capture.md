@@ -14,8 +14,8 @@ Security boundary: per-device Bearer credentials; raw bank messages and plaintex
 
 ## Tasks
 - [x] **T1** — S1, S5 — Add strict template parser, amount normalization, redaction, and audit-hash primitives with RED/GREEN domain tests. Route: `gentle-ai-worker` (context backstop). Commit: `eb1e8e1`.
-- [x] **T2** — S3-S6 — Add credential/template schema, migration, ports, and repositories with persistence and privacy tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (device authentication secrets and workspace isolation).
-- [ ] **T3** — S2-S5, S8 — Add the direct bank-SMS capture use case with authentication, workspace isolation, idempotency, and automatic expense registration tests. Route: inline. Commit: pending.
+- [x] **T2** — S3-S6 — Add credential/template schema, migration, ports, and repositories with persistence and privacy tests. Route: `gentle-ai-worker` (context backstop). Commit: `92f6b50`. Risk: item 2 (device authentication secrets and workspace isolation).
+- [x] **T3** — S2-S5, S8 — Add the direct bank-SMS capture use case with authentication, workspace isolation, idempotency, and automatic expense registration tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (authentication and workspace boundary).
 - [ ] **T4** — S2-S5, S8 — Expose the dedicated Bearer-authenticated HTTP endpoint with public-contract and regression tests. Route: inline. Commit: pending.
 - [ ] **T5** — S3, S4, S6 — Add the administrative provisioning CLI and tests for create/list/revoke/rotate/assign behavior. Route: inline. Commit: pending.
 - [ ] **T6** — S7 — Document the iPhone Shortcut pilot, provisioning, secure token handling, notifications, revocation, and rotation. Route: inline. Commit: pending.
@@ -30,3 +30,4 @@ Security boundary: per-device Bearer credentials; raw bank messages and plaintex
 - **L6** — `de acuerdo con que el token no expite hasta ser revocado.`
 - **L7** — `El remitente es un número telefonico: +506 6222-9581`
 - **L8** — `listo! prepara lo necesario: el alcance, las tareas y las pruebas`
+- **L9** — Delivery strategy: preserve work-unit commits as chained-PR-ready slices without publishing. Slice 1: `eb1e8e1` (T1). Slice 2: `92f6b50` (T2, smallest cohesive security persistence unit at 490 authored lines). T3 is also kept as one cohesive security behavior unit because authentication, idempotency, redacted audit persistence, and direct registration must remain reviewable together.
