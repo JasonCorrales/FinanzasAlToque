@@ -1,7 +1,7 @@
 import { DomainValidationError } from "../shared/domain-validation-error.js";
 import { Money } from "./money.js";
 
-export type CaptureChannel = "telegram";
+export type CaptureChannel = "telegram" | "bank_sms";
 
 export interface CreateExpenseDraftInput {
   rawMessage: string;

@@ -31,7 +31,7 @@ export const captures = pgTable(
       table.channel,
       table.externalMessageId
     ),
-    check("captures_channel_check", sql`${table.channel} in ('telegram')`),
+    check("captures_channel_check", sql`${table.channel} in ('telegram', 'bank_sms')`),
     check("captures_status_check", sql`${table.status} in ('received', 'processed', 'rejected')`),
     check("captures_raw_message_check", sql`length(trim(${table.rawMessage})) > 0`)
   ]
@@ -70,6 +70,94 @@ export const confirmationPolicies = pgTable(
       )`
     ),
     check("confirmation_policies_version_check", sql`${table.version} > 0`)
+  ]
+);
+
+export const bankSmsDeviceCredentials = pgTable(
+  "bank_sms_device_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    deviceLabel: text("device_label").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true })
+  },
+  (table) => [
+    unique("bank_sms_device_credentials_token_hash_uq").on(table.tokenHash),
+    check("bank_sms_device_credentials_label_check", sql`length(trim(${table.deviceLabel})) > 0`),
+    check(
+      "bank_sms_device_credentials_token_hash_check",
+      sql`${table.tokenHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    check(
+      "bank_sms_device_credentials_state_check",
+      sql`(${table.active} and ${table.revokedAt} is null) or (not ${table.active} and ${table.revokedAt} is not null)`
+    )
+  ]
+);
+
+export const bankSmsTemplates = pgTable(
+  "bank_sms_templates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    sender: text("sender").notNull(),
+    body: text("body").notNull(),
+    version: text("version").notNull(),
+    paymentMethod: text("payment_method").notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    unique("bank_sms_templates_workspace_version_uq").on(table.workspaceId, table.version),
+    uniqueIndex("bank_sms_templates_workspace_active_uq")
+      .on(table.workspaceId)
+      .where(sql`${table.active}`),
+    check("bank_sms_templates_sender_check", sql`${table.sender} ~ '^\\+[1-9][0-9]{1,14}$'`),
+    check("bank_sms_templates_body_check", sql`length(trim(${table.body})) > 0`),
+    check("bank_sms_templates_version_check", sql`length(trim(${table.version})) > 0`),
+    check(
+      "bank_sms_templates_payment_method_check",
+      sql`length(trim(${table.paymentMethod})) > 0`
+    )
+  ]
+);
+
+export const bankSmsCaptureAudits = pgTable(
+  "bank_sms_capture_audits",
+  {
+    captureId: uuid("capture_id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    messageHash: text("message_hash").notNull(),
+    templateId: uuid("template_id").notNull(),
+    templateVersion: text("template_version").notNull(),
+    credentialId: uuid("credential_id").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    foreignKey({
+      name: "bank_sms_capture_audits_workspace_capture_fk",
+      columns: [table.workspaceId, table.captureId],
+      foreignColumns: [captures.workspaceId, captures.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "bank_sms_capture_audits_template_fk",
+      columns: [table.templateId],
+      foreignColumns: [bankSmsTemplates.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "bank_sms_capture_audits_credential_fk",
+      columns: [table.credentialId],
+      foreignColumns: [bankSmsDeviceCredentials.id]
+    }).onDelete("restrict"),
+    check("bank_sms_capture_audits_hash_check", sql`${table.messageHash} ~ '^sha256:v1:[a-f0-9]{64}$'`),
+    check("bank_sms_capture_audits_template_version_check", sql`length(trim(${table.templateVersion})) > 0`)
   ]
 );
 

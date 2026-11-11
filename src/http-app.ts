@@ -3,13 +3,27 @@ import { STATUS_CODES } from "node:http";
 import Fastify, { type FastifyServerOptions } from "fastify";
 import { z } from "zod";
 
+import {
+  BankSmsAuthenticationError,
+  BankSmsConfigurationError,
+  BankSmsValidationError
+} from "./application/bank-sms-errors.js";
 import type { DecideTransaction } from "./application/decide-transaction.js";
+import type { ProcessBankSmsCapture } from "./application/process-bank-sms-capture.js";
 import type { ProcessCapture } from "./application/process-capture.js";
 
 interface BuildAppOptions extends FastifyServerOptions {
   processCapture?: ProcessCapture;
+  processBankSmsCapture?: ProcessBankSmsCapture;
   decideTransaction?: DecideTransaction;
 }
+
+const bankSmsCaptureSchema = z.object({
+  eventId: z.string().min(1),
+  sender: z.string().min(1),
+  message: z.string().min(1),
+  receivedAt: z.iso.datetime().optional()
+}).strict();
 
 const captureSchema = z.object({
   workspaceId: z.string().uuid(),
@@ -27,6 +41,9 @@ const decisionSchema = z.object({
 const transactionParamsSchema = z.object({ id: z.string().uuid() });
 
 function publicErrorStatusCode(error: unknown): number {
+  if (error instanceof BankSmsAuthenticationError) return 401;
+  if (error instanceof BankSmsValidationError) return 422;
+  if (error instanceof BankSmsConfigurationError) return 503;
   if (typeof error !== "object" || error === null || !("statusCode" in error)) return 500;
   const statusCode = error.statusCode;
   return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500
@@ -35,15 +52,37 @@ function publicErrorStatusCode(error: unknown): number {
 }
 
 function publicErrorMessage(error: unknown): string {
+  if (error instanceof BankSmsAuthenticationError) return "No autorizado.";
+  if (error instanceof BankSmsValidationError) return "La captura bancaria no coincide con la configuración.";
+  if (error instanceof BankSmsConfigurationError) return "La captura bancaria no está disponible.";
   return error instanceof Error ? error.message : "Request failed";
 }
 
+function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null {
+  const values: string[] = [];
+  for (let index = 0; index < request.raw.rawHeaders.length; index += 2) {
+    if (request.raw.rawHeaders[index]?.toLowerCase() === "authorization") {
+      values.push(request.raw.rawHeaders[index + 1] ?? "");
+    }
+  }
+  if (values.length !== 1) return null;
+  const match = /^Bearer ([A-Za-z0-9_-]{32,512})$/.exec(values[0] ?? "");
+  return match?.[1] ?? null;
+}
+
 export function buildApp(options: BuildAppOptions = {}) {
-  const { processCapture, decideTransaction, ...fastifyOptions } = options;
+  const { processCapture, processBankSmsCapture, decideTransaction, ...fastifyOptions } = options;
   const app = Fastify(fastifyOptions);
 
   app.setErrorHandler((error, request, reply) => {
     const statusCode = publicErrorStatusCode(error);
+    if (
+      error instanceof BankSmsAuthenticationError
+      || error instanceof BankSmsValidationError
+      || error instanceof BankSmsConfigurationError
+    ) {
+      return reply.code(statusCode).send({ status: "rejected", message: publicErrorMessage(error) });
+    }
     if (statusCode < 500) {
       return reply.code(statusCode).send({
         statusCode,
@@ -75,6 +114,36 @@ export function buildApp(options: BuildAppOptions = {}) {
       const { duplicate, ...rest } = outcome;
       const body = duplicate ? { ...rest, duplicate: true } : rest;
       return reply.code(statusCode).send(body);
+    });
+  }
+
+  if (processBankSmsCapture) {
+    app.post("/v1/bank-sms/captures", async (request, reply) => {
+      const parsed = bankSmsCaptureSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ status: "rejected", message: "La captura bancaria no es válida." });
+      }
+      const token = bankSmsToken(request);
+      if (!token) return reply.code(401).send({ status: "rejected", message: "No autorizado." });
+
+      const outcome = await processBankSmsCapture.execute({
+        token,
+        eventId: parsed.data.eventId,
+        sender: parsed.data.sender,
+        message: parsed.data.message,
+        receivedAt: parsed.data.receivedAt ? new Date(parsed.data.receivedAt) : new Date()
+      });
+      return reply.code(outcome.duplicate ? 200 : 201).send({
+        status: outcome.status,
+        duplicate: outcome.duplicate,
+        transactionId: outcome.transactionId,
+        transaction: {
+          amount: outcome.transaction.amount,
+          currency: outcome.transaction.currency,
+          concept: outcome.transaction.concept,
+          paymentMethod: outcome.transaction.paymentMethod
+        }
+      });
     });
   }
 
