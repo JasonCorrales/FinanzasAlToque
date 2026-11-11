@@ -86,7 +86,7 @@ describe("POST /v1/bank-sms/captures", () => {
         status: "registered", duplicate: true, transactionId: "40000000-0000-4000-8000-000000000001",
         transaction: { transactionType: "expense", amount: "5300", currency: "CRC", concept: "Super Mercado", paymentMethod: "card", status: "registered", confidence: 1 }
       };
-    }; 
+    };
     const app = buildApp({ logger: false, processBankSmsCapture: useCase });
 
     const response = await request(app, `Bearer ${token}`, { ...payload, eventId: "bank-event-43", receivedAt: undefined });
