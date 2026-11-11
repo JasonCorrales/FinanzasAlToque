@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 
 import { BankSmsTemplate, CoopeAndePurchaseParser } from "../domain/bank-sms/coope-ande-purchase.js";
+import { DomainValidationError } from "../domain/shared/domain-validation-error.js";
 import { ExpenseDraft } from "../domain/transactions/expense-draft.js";
+import {
+  BankSmsAuthenticationError,
+  BankSmsConfigurationError,
+  BankSmsValidationError
+} from "./bank-sms-errors.js";
 import { Money } from "../domain/transactions/money.js";
 import type {
   BankSmsCaptureAuditRepository,
@@ -48,22 +54,35 @@ export class ProcessBankSmsCapture {
   async execute(input: ProcessBankSmsCaptureInput): Promise<ProcessBankSmsCaptureOutput> {
     const credential = await this.authenticate(input.token);
     const templateRecord = await this.dependencies.templates.resolveActive(credential.workspaceId);
-    if (!templateRecord) throw new Error("bank SMS template is unavailable");
+    if (!templateRecord) throw new BankSmsConfigurationError("bank SMS template is unavailable");
 
-    const parser = new CoopeAndePurchaseParser(BankSmsTemplate.create({
-      version: templateRecord.version,
-      body: templateRecord.body
-    }));
-    const purchase = parser.parse({ sender: input.sender, message: input.message });
+    let parser: CoopeAndePurchaseParser;
+    try {
+      parser = new CoopeAndePurchaseParser(BankSmsTemplate.create({
+        version: templateRecord.version,
+        body: templateRecord.body
+      }));
+    } catch (error) {
+      if (error instanceof DomainValidationError) throw new BankSmsConfigurationError(error.message);
+      throw error;
+    }
+
+    let purchase;
+    try {
+      purchase = parser.parse({ sender: input.sender, message: input.message });
+    } catch (error) {
+      if (error instanceof DomainValidationError) throw new BankSmsValidationError(error.message);
+      throw error;
+    }
     if (purchase.sender !== templateRecord.sender) {
-      throw new Error("bank SMS sender does not match the configured template");
+      throw new BankSmsValidationError("bank SMS sender does not match the configured template");
     }
 
     const paymentMethod = await this.dependencies.paymentMethods.findEnabled(
       credential.workspaceId,
       templateRecord.paymentMethod
     );
-    if (!paymentMethod) throw new Error("bank SMS payment method is unavailable");
+    if (!paymentMethod) throw new BankSmsConfigurationError("bank SMS payment method is unavailable");
 
     const draft = ExpenseDraft.create({
       rawMessage: purchase.audit.redactedMessage,
@@ -111,10 +130,10 @@ export class ProcessBankSmsCapture {
   }
 
   private async authenticate(token: string) {
-    if (!/^[A-Za-z0-9_-]{32,512}$/.test(token)) throw new Error("bank SMS authentication failed");
+    if (!/^[A-Za-z0-9_-]{32,512}$/.test(token)) throw new BankSmsAuthenticationError();
     const tokenHash = createHash("sha256").update(token, "utf8").digest("hex");
     const credential = await this.dependencies.credentials.findActiveByTokenHash(tokenHash);
-    if (!credential) throw new Error("bank SMS authentication failed");
+    if (!credential) throw new BankSmsAuthenticationError();
     return credential;
   }
 
