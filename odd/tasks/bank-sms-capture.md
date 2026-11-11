@@ -13,8 +13,8 @@ Security boundary: per-device Bearer credentials; raw bank messages and plaintex
 8. **S8 — Existing behavior.** Preserve the existing Telegram text and voice-note capture behavior, workspace isolation, confirmation semantics, payment-method validation, deduplication, sanitized HTTP errors, and migration replay behavior.
 
 ## Tasks
-- [x] **T1** — S1, S5 — Add strict template parser, amount normalization, redaction, and audit-hash primitives with RED/GREEN domain tests. Route: `gentle-ai-worker` (context backstop). Commit: pending.
-- [ ] **T2** — S3-S6 — Add credential/template schema, migration, ports, and repositories with persistence and privacy tests. Route: inline. Commit: pending.
+- [x] **T1** — S1, S5 — Add strict template parser, amount normalization, redaction, and audit-hash primitives with RED/GREEN domain tests. Route: `gentle-ai-worker` (context backstop). Commit: `eb1e8e1`.
+- [x] **T2** — S3-S6 — Add credential/template schema, migration, ports, and repositories with persistence and privacy tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (device authentication secrets and workspace isolation).
 - [ ] **T3** — S2-S5, S8 — Add the direct bank-SMS capture use case with authentication, workspace isolation, idempotency, and automatic expense registration tests. Route: inline. Commit: pending.
 - [ ] **T4** — S2-S5, S8 — Expose the dedicated Bearer-authenticated HTTP endpoint with public-contract and regression tests. Route: inline. Commit: pending.
 - [ ] **T5** — S3, S4, S6 — Add the administrative provisioning CLI and tests for create/list/revoke/rotate/assign behavior. Route: inline. Commit: pending.

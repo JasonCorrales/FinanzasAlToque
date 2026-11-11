@@ -67,6 +67,64 @@ export interface PaymentMethodCatalogRepository {
   findEnabled(workspaceId: string, codeOrLabel: string): Promise<PaymentMethodRecord | null>;
 }
 
+export interface BankSmsDeviceCredentialRecord {
+  id: string;
+  workspaceId: string;
+  deviceLabel: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+}
+
+export interface ActiveBankSmsDeviceCredential extends BankSmsDeviceCredentialRecord {}
+
+export interface CreateBankSmsDeviceCredential {
+  workspaceId: string;
+  deviceLabel: string;
+  tokenHash: string;
+}
+
+export interface BankSmsTemplateRecord {
+  id: string;
+  workspaceId: string;
+  sender: string;
+  body: string;
+  version: string;
+  paymentMethod: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AssignBankSmsTemplate {
+  workspaceId: string;
+  sender: string;
+  body: string;
+  version: string;
+  paymentMethod: string;
+}
+
+export interface BankSmsCredentialRepository {
+  create(input: CreateBankSmsDeviceCredential): Promise<BankSmsDeviceCredentialRecord>;
+  listByWorkspace(workspaceId: string): Promise<BankSmsDeviceCredentialRecord[]>;
+  findActiveByTokenHash(tokenHash: string): Promise<ActiveBankSmsDeviceCredential | null>;
+  touchLastUsed(workspaceId: string, credentialId: string): Promise<BankSmsDeviceCredentialRecord | null>;
+  revoke(workspaceId: string, credentialId: string): Promise<BankSmsDeviceCredentialRecord | null>;
+  rotate(
+    workspaceId: string,
+    credentialId: string,
+    input: Omit<CreateBankSmsDeviceCredential, "workspaceId">
+  ): Promise<BankSmsDeviceCredentialRecord | null>;
+}
+
+export interface BankSmsTemplateRepository {
+  assign(input: AssignBankSmsTemplate): Promise<BankSmsTemplateRecord>;
+  listByWorkspace(workspaceId: string): Promise<BankSmsTemplateRecord[]>;
+  resolveActive(workspaceId: string): Promise<BankSmsTemplateRecord | null>;
+}
+
 export type InterpretationResult =
   | {
       kind: "expense";
