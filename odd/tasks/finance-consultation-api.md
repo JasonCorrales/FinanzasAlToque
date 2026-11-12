@@ -12,7 +12,7 @@ Branch: `feat/finance-consultation-api`. Delivery: `stacked-to-main`; forecast ~
 ## Tasks
 - T1 [S1-S2] [route: bounded worker via context backstop] [status: done] Add authenticated user-to-workspace resolution with tests and migration. Commit: d662264.
 - T2 [S1-S2] [route: bounded worker via context backstop] [status: done] Add decimal-safe, paginated registered-expense query and totals with filters and tests. Commit: 213bdc5.
-- T3 [S1-S2] [route: bounded worker via context backstop] [status: in_progress] Expose the authenticated HTTP endpoint and document its contract and production configuration. Commit: pending.
+- T3 [S1-S2] [route: bounded worker via context backstop] [status: in_progress — hygiene correction and bounded re-verification] Expose the authenticated HTTP endpoint and document its contract and production configuration. Commits: d2e4185 + pending correction.
 - T4 [S1-S2] [route: independent verifier required for security risk item 2] [status: pending] Run full verification, tenant-isolation probes, and close the feature. Commit: pending.
 
 ## Log
@@ -32,3 +32,6 @@ Branch: `feat/finance-consultation-api`. Delivery: `stacked-to-main`; forecast ~
 - L14 — T2 independent verifier setup failed before probes because the isolated worktree had no installed binaries (`vitest: not found`, `tsc: not found`); zero required test/typecheck/build probes ran. Static inspection found no defect and `git diff --check` passed. This attempt remains BLOCKED and will not be retried automatically.
 - L15 — User explicitly authorized one new bounded T2 verification attempt using `npm ci` in isolated scratch before the exact required probes.
 - L16 — The one authorized T2 verification attempt PASS: isolated `npm ci`, 2 files/14 tests, typecheck, build, and commit-range diff check all passed; S1/S2 passed for T2.
+- L17 — Stacked-to-main slice 3 is commit d2e4185 (authenticated HTTP contract, production composition, and docs).
+- L18 — T3 RED observed for the missing endpoint, typed errors, and production fail-fast; GREEN passed 4 files/34 tests, typecheck, build, and parent spot check. Work-unit commit: d2e4185.
+- L19 — T3 independent verification found one blocker only: trailing whitespace at `test/api/transaction-query.test.ts:115`; all 34 tests, typecheck, and build passed. One correction removed the whitespace; focused API tests passed 1 file/14 tests before the correction commit.

@@ -112,7 +112,7 @@ describe("GET /v1/transactions", () => {
     await app.close();
   });
 
-  it.each([undefined, "Basic token", "Bearer not.a.jwt.extra"]) 
+  it.each([undefined, "Basic token", "Bearer not.a.jwt.extra"])
   ("rejects a missing or malformed Authorization header", async (authorization) => {
     const { app, queryRegisteredExpenses } = buildTransactionApp();
     const response = await app.inject({
