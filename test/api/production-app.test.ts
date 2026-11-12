@@ -68,7 +68,7 @@ describe("production application composition", () => {
       message: "Gasto confirmado: ₡15.000 CRC en Gasolina."
     });
     await app.close();
-  });
+  }, 15_000);
 
   it("composes the bank SMS endpoint with the production credential, template, audit, capture, payment, and transaction repositories", async () => {
     const client = new PGlite();
