@@ -5,7 +5,10 @@ import type {
   RegisteredExpenseQueryRepository,
   RegisteredExpenseQueryResult
 } from "../../src/application/ports.js";
-import { QueryRegisteredExpenses } from "../../src/application/query-registered-expenses.js";
+import {
+  QueryRegisteredExpenses,
+  RegisteredExpenseQueryValidationError
+} from "../../src/application/query-registered-expenses.js";
 
 const workspaceId = "10000000-0000-4000-8000-000000000001";
 const from = new Date("2025-01-01T00:00:00.000Z");
@@ -75,7 +78,9 @@ describe("QueryRegisteredExpenses", () => {
     const repository = new QueryRepository();
     const query = new QueryRegisteredExpenses(repository);
 
-    await expect(query.execute({ workspaceId, ...input })).rejects.toThrow("Invalid registered expense query");
+    await expect(query.execute({ workspaceId, ...input })).rejects.toBeInstanceOf(
+      RegisteredExpenseQueryValidationError
+    );
     expect(repository.calls).toEqual([]);
   });
 });

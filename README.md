@@ -110,6 +110,60 @@ The API can register Coope Ande card-purchase SMS messages directly from a per-d
 | View credential and template commands | `npm run bank-sms:admin -- --help` |
 | Receive a device-authenticated bank SMS | `POST /v1/bank-sms/captures` |
 
+## Consult registered expenses
+
+`GET /v1/transactions` returns a read-only, cursor-paginated view of **registered expenses**. It is authenticated with a Supabase access JWT and resolves the workspace from server-side membership; callers cannot select a tenant with a query parameter or request body.
+
+| Query parameter | Required | Contract |
+|---|---:|---|
+| `from` | Yes | ISO datetime, inclusive lower bound for registration time. |
+| `to` | Yes | ISO datetime, exclusive upper bound; it must be after `from`. |
+| `paymentMethod` | No | Exact canonical payment-method code. |
+| `limit` | No | Integer from 1 through 100; defaults to 50. |
+| `cursor` | No | Opaque cursor returned as `nextCursor`; do not construct or modify it. |
+
+Send exactly one raw `Authorization` header in the form `Bearer <Supabase access JWT>`. A missing, duplicate, malformed, or invalid token returns `401` with `No autorizado.` A valid user with zero or multiple workspace memberships receives `403` with `Acceso denegado.` Invalid or unknown query parameters return `400` with `La consulta no es válida.`
+
+```bash
+curl --get 'https://<your-api>/v1/transactions' \
+  --data-urlencode 'from=2025-01-01T00:00:00.000Z' \
+  --data-urlencode 'to=2025-02-01T00:00:00.000Z' \
+  --data-urlencode 'paymentMethod=card' \
+  --data-urlencode 'limit=50' \
+  -H 'Authorization: Bearer <Supabase access JWT>'
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "40000000-0000-4000-8000-000000000001",
+      "amount": "1234.560000",
+      "currency": "CRC",
+      "concept": "Supermercado",
+      "paymentMethod": "card",
+      "createdAt": "2025-01-15T12:00:00.000Z"
+    }
+  ],
+  "totalCount": 1,
+  "totalsByCurrency": [{ "currency": "CRC", "amount": "1234.560000" }],
+  "nextCursor": "<opaque cursor>"
+}
+```
+
+`createdAt` is the transaction registration time, not the time of the original bank or Telegram message. Amounts and totals are decimal strings, and totals are separated by currency; clients must not add values from different currencies. Items intentionally omit captures and raw messages.
+
+### Supabase and workspace provisioning
+
+Production requires `SUPABASE_URL`, the HTTPS root URL of the Supabase project (for example, `https://project.supabase.co`). The application fails at startup when it is absent. Supabase Auth verifies the access JWT, but membership stays database-backed. Provision exactly one workspace membership for each user who can use this endpoint:
+
+```sql
+INSERT INTO workspace_memberships (auth_user_id, workspace_id)
+VALUES ('<Supabase auth user UUID>', '<workspace UUID>');
+```
+
+The endpoint denies users with no membership or more than one membership rather than guessing a workspace.
+
 ## Confirm or cancel
 
 `POST /v1/transactions/:transactionId/decision`
@@ -149,6 +203,7 @@ This change makes the API deployable on Vercel; it does **not** deploy it. Verce
 1. Create a Vercel project from this repository and configure these environment variables:
    - `DATABASE_URL`: the Supabase **shared transaction pooler** connection string, using port `6543`.
    - `DATABASE_CA_CERT`: the PEM CA certificate for that Supabase connection. Store the full certificate as an environment variable for Preview and Production; do not commit it. Every Vercel deployment fails at startup if it is absent, rather than disabling certificate verification.
+   - `SUPABASE_URL`: the HTTPS Supabase project root URL used to verify authenticated consultation JWTs. The API fails fast when it is absent.
 2. Run `npm run db:migrate` separately against the target database before serving traffic. Migrations are not run by the serverless function.
 3. After deployment, verify `GET https://<your-vercel-domain>/health` returns `{"status":"ok"}`.
 4. Update n8n `FINANCE_API_URL` to `https://<your-vercel-domain>` (and keep `FINANCE_WORKSPACE_ID` configured as before).

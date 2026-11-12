@@ -5,6 +5,7 @@ import type { FastifyServerOptions } from "fastify";
 import { DecideTransaction } from "./application/decide-transaction.js";
 import { ProcessBankSmsCapture } from "./application/process-bank-sms-capture.js";
 import { ProcessCapture } from "./application/process-capture.js";
+import { QueryRegisteredExpenses } from "./application/query-registered-expenses.js";
 import { ResolveAuthenticatedWorkspace } from "./application/resolve-authenticated-workspace.js";
 import { buildApp } from "./http-app.js";
 import { SupabaseJwtVerifier } from "./infrastructure/auth/supabase-jwt-verifier.js";
@@ -15,6 +16,7 @@ import { DrizzleBankSmsTemplateRepository } from "./infrastructure/repositories/
 import { DrizzleCaptureRepository } from "./infrastructure/repositories/drizzle-capture-repository.js";
 import { DrizzleConfirmationPolicyRepository } from "./infrastructure/repositories/drizzle-confirmation-policy-repository.js";
 import { DrizzlePaymentMethodCatalogRepository } from "./infrastructure/repositories/drizzle-payment-method-catalog-repository.js";
+import { DrizzleTransactionQueryRepository } from "./infrastructure/repositories/drizzle-transaction-query-repository.js";
 import { DrizzleTransactionRepository } from "./infrastructure/repositories/drizzle-transaction-repository.js";
 import { DrizzleWorkspaceMembershipRepository } from "./infrastructure/repositories/drizzle-workspace-membership-repository.js";
 import type { FinanceDatabase } from "./infrastructure/repositories/database.js";
@@ -58,6 +60,15 @@ export function buildProductionApp(
     nextId
   });
   const decideTransaction = new DecideTransaction(transactions);
+  const resolveAuthenticatedWorkspace = buildAuthenticatedWorkspaceResolver(db);
+  const queryRegisteredExpenses = new QueryRegisteredExpenses(new DrizzleTransactionQueryRepository(db));
 
-  return buildApp({ ...fastifyOptions, processCapture, processBankSmsCapture, decideTransaction });
+  return buildApp({
+    ...fastifyOptions,
+    processCapture,
+    processBankSmsCapture,
+    decideTransaction,
+    resolveAuthenticatedWorkspace,
+    queryRegisteredExpenses
+  });
 }

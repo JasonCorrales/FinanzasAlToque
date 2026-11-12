@@ -2,20 +2,27 @@ import { createHash } from "node:crypto";
 
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { buildProductionApp } from "../../src/bootstrap.js";
 import { applyMigrations } from "../../src/infrastructure/database/migrate.js";
 import * as schema from "../../src/infrastructure/database/schema.js";
 
 const clients: PGlite[] = [];
+const originalSupabaseUrl = process.env.SUPABASE_URL;
+
+beforeEach(() => {
+  process.env.SUPABASE_URL = "https://project.supabase.co";
+});
 
 afterEach(async () => {
   await Promise.all(clients.splice(0).map((client) => client.close()));
+  if (originalSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL = originalSupabaseUrl;
 });
 
 describe("production application composition", () => {
-  it("exposes the capture endpoint with real repositories", async () => {
+  it("preserves the existing capture endpoint after consultation composition", async () => {
     const client = new PGlite();
     clients.push(client);
     await applyMigrations(client);
@@ -100,6 +107,16 @@ describe("production application composition", () => {
     });
     expect((await db.select().from(schema.bankSmsCaptureAudits))).toHaveLength(1);
     await app.close();
+  });
+
+  it("fails fast when SUPABASE_URL is absent", async () => {
+    const client = new PGlite();
+    clients.push(client);
+    await applyMigrations(client);
+    const db = drizzle(client, { schema });
+    delete process.env.SUPABASE_URL;
+
+    expect(() => buildProductionApp(db, { logger: false })).toThrow("SUPABASE_URL is required");
   });
 
   it("rejects captures until the workspace catalog is manually provisioned", async () => {
