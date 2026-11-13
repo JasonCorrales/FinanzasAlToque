@@ -1,6 +1,18 @@
 import type { CaptureChannel } from "../domain/transactions/expense-draft.js";
 import type { ConfirmationMode } from "../domain/confirmation-policies/confirmation-policy.js";
 
+export interface AuthenticatedUser {
+  id: string;
+}
+
+export interface AuthenticatedUserVerifier {
+  verify(accessToken: string): Promise<AuthenticatedUser>;
+}
+
+export interface WorkspaceMembershipRepository {
+  listWorkspaceIdsByAuthUserId(authUserId: string): Promise<string[]>;
+}
+
 export interface CaptureRecord {
   id: string;
   workspaceId: string;
