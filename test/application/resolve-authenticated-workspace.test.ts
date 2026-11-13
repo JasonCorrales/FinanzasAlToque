@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   AuthenticatedWorkspaceAccessError,
+  AuthenticatedWorkspaceAuthenticationError,
   ResolveAuthenticatedWorkspace
 } from "../../src/application/resolve-authenticated-workspace.js";
 
@@ -22,6 +23,17 @@ describe("ResolveAuthenticatedWorkspace", () => {
     });
     expect(verify).toHaveBeenCalledWith("access-token");
     expect(listWorkspaceIdsByAuthUserId).toHaveBeenCalledWith("supabase-user-id");
+  });
+
+  it("converts verifier failures to an application authentication error", async () => {
+    const resolver = new ResolveAuthenticatedWorkspace({
+      users: { verify: vi.fn().mockRejectedValue(new Error("infrastructure verifier failure")) },
+      memberships: { listWorkspaceIdsByAuthUserId: vi.fn() }
+    });
+
+    await expect(resolver.execute({ accessToken: "access-token" })).rejects.toBeInstanceOf(
+      AuthenticatedWorkspaceAuthenticationError
+    );
   });
 
   it.each([

@@ -11,11 +11,22 @@ import {
 import type { DecideTransaction } from "./application/decide-transaction.js";
 import type { ProcessBankSmsCapture } from "./application/process-bank-sms-capture.js";
 import type { ProcessCapture } from "./application/process-capture.js";
+import {
+  QueryRegisteredExpenses,
+  RegisteredExpenseQueryValidationError
+} from "./application/query-registered-expenses.js";
+import {
+  AuthenticatedWorkspaceAccessError,
+  AuthenticatedWorkspaceAuthenticationError,
+  ResolveAuthenticatedWorkspace
+} from "./application/resolve-authenticated-workspace.js";
 
 interface BuildAppOptions extends FastifyServerOptions {
   processCapture?: ProcessCapture;
   processBankSmsCapture?: ProcessBankSmsCapture;
   decideTransaction?: DecideTransaction;
+  resolveAuthenticatedWorkspace?: ResolveAuthenticatedWorkspace;
+  queryRegisteredExpenses?: QueryRegisteredExpenses;
 }
 
 const bankSmsCaptureSchema = z.object({
@@ -40,8 +51,24 @@ const decisionSchema = z.object({
 
 const transactionParamsSchema = z.object({ id: z.string().uuid() });
 
+const transactionQuerySchema = z.object({
+  from: z.iso.datetime(),
+  to: z.iso.datetime(),
+  paymentMethod: z.string().min(1).refine((value) => value === value.trim()).optional(),
+  limit: z.string().regex(/^(?:[1-9][0-9]?|100)$/).optional(),
+  cursor: z.string().regex(/^[A-Za-z0-9_-]+$/).optional()
+}).strict();
+
+const cursorPayloadSchema = z.object({
+  v: z.literal(1),
+  createdAt: z.iso.datetime(),
+  id: z.string().uuid()
+}).strict();
+
 function publicErrorStatusCode(error: unknown): number {
-  if (error instanceof BankSmsAuthenticationError) return 401;
+  if (error instanceof BankSmsAuthenticationError || error instanceof AuthenticatedWorkspaceAuthenticationError) return 401;
+  if (error instanceof AuthenticatedWorkspaceAccessError) return 403;
+  if (error instanceof RegisteredExpenseQueryValidationError) return 400;
   if (error instanceof BankSmsValidationError) return 422;
   if (error instanceof BankSmsConfigurationError) return 503;
   if (typeof error !== "object" || error === null || !("statusCode" in error)) return 500;
@@ -52,7 +79,9 @@ function publicErrorStatusCode(error: unknown): number {
 }
 
 function publicErrorMessage(error: unknown): string {
-  if (error instanceof BankSmsAuthenticationError) return "No autorizado.";
+  if (error instanceof BankSmsAuthenticationError || error instanceof AuthenticatedWorkspaceAuthenticationError) return "No autorizado.";
+  if (error instanceof AuthenticatedWorkspaceAccessError) return "Acceso denegado.";
+  if (error instanceof RegisteredExpenseQueryValidationError) return "La consulta no es válida.";
   if (error instanceof BankSmsValidationError) return "La captura bancaria no coincide con la configuración.";
   if (error instanceof BankSmsConfigurationError) return "La captura bancaria no está disponible.";
   return error instanceof Error ? error.message : "Request failed";
@@ -70,8 +99,44 @@ function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null
   return match?.[1] ?? null;
 }
 
+function consultationAccessToken(request: { raw: { rawHeaders: string[] } }): string | null {
+  const values: string[] = [];
+  for (let index = 0; index < request.raw.rawHeaders.length; index += 2) {
+    if (request.raw.rawHeaders[index]?.toLowerCase() === "authorization") {
+      values.push(request.raw.rawHeaders[index + 1] ?? "");
+    }
+  }
+  if (values.length !== 1) return null;
+  const match = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(values[0] ?? "");
+  return match?.[1] ?? null;
+}
+
+function decodeCursor(value: string) {
+  try {
+    const decoded = Buffer.from(value, "base64url");
+    if (decoded.toString("base64url") !== value) return null;
+    const parsed = cursorPayloadSchema.safeParse(JSON.parse(decoded.toString("utf8")));
+    if (!parsed.success) return null;
+    return { createdAt: new Date(parsed.data.createdAt), id: parsed.data.id };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCursor(cursor: { createdAt: Date; id: string } | null): string | null {
+  if (!cursor) return null;
+  return Buffer.from(JSON.stringify({ v: 1, createdAt: cursor.createdAt.toISOString(), id: cursor.id })).toString("base64url");
+}
+
 export function buildApp(options: BuildAppOptions = {}) {
-  const { processCapture, processBankSmsCapture, decideTransaction, ...fastifyOptions } = options;
+  const {
+    processCapture,
+    processBankSmsCapture,
+    decideTransaction,
+    resolveAuthenticatedWorkspace,
+    queryRegisteredExpenses,
+    ...fastifyOptions
+  } = options;
   const app = Fastify(fastifyOptions);
 
   app.setErrorHandler((error, request, reply) => {
@@ -80,6 +145,9 @@ export function buildApp(options: BuildAppOptions = {}) {
       error instanceof BankSmsAuthenticationError
       || error instanceof BankSmsValidationError
       || error instanceof BankSmsConfigurationError
+      || error instanceof AuthenticatedWorkspaceAuthenticationError
+      || error instanceof AuthenticatedWorkspaceAccessError
+      || error instanceof RegisteredExpenseQueryValidationError
     ) {
       return reply.code(statusCode).send({ status: "rejected", message: publicErrorMessage(error) });
     }
@@ -143,6 +211,45 @@ export function buildApp(options: BuildAppOptions = {}) {
           concept: outcome.transaction.concept,
           paymentMethod: outcome.transaction.paymentMethod
         }
+      });
+    });
+  }
+
+  if (resolveAuthenticatedWorkspace && queryRegisteredExpenses) {
+    app.get("/v1/transactions", async (request, reply) => {
+      const parsed = transactionQuerySchema.safeParse(request.query);
+      const decodedCursor = parsed.success && parsed.data.cursor ? decodeCursor(parsed.data.cursor) : undefined;
+      const from = parsed.success ? new Date(parsed.data.from) : undefined;
+      const to = parsed.success ? new Date(parsed.data.to) : undefined;
+      if (!parsed.success || (parsed.data.cursor !== undefined && !decodedCursor) || !from || !to || from >= to) {
+        return reply.code(400).send({ status: "rejected", message: "La consulta no es válida." });
+      }
+
+      const cursor = decodedCursor ?? undefined;
+      const accessToken = consultationAccessToken(request);
+      if (!accessToken) return reply.code(401).send({ status: "rejected", message: "No autorizado." });
+
+      const workspace = await resolveAuthenticatedWorkspace.execute({ accessToken });
+      const result = await queryRegisteredExpenses.execute({
+        workspaceId: workspace.workspaceId,
+        from,
+        to,
+        limit: parsed.data.limit === undefined ? 50 : Number(parsed.data.limit),
+        ...(parsed.data.paymentMethod === undefined ? {} : { paymentMethod: parsed.data.paymentMethod }),
+        ...(cursor === undefined ? {} : { cursor })
+      });
+      return reply.code(200).send({
+        items: result.items.map((item) => ({
+          id: item.id,
+          amount: item.amount,
+          currency: item.currency,
+          concept: item.concept,
+          paymentMethod: item.paymentMethod,
+          createdAt: item.createdAt.toISOString()
+        })),
+        totalCount: result.totalCount,
+        totalsByCurrency: result.totalsByCurrency,
+        nextCursor: encodeCursor(result.nextCursor)
       });
     });
   }

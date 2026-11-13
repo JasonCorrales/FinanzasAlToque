@@ -4,6 +4,13 @@ import type {
   RegisteredExpenseQueryResult
 } from "./ports.js";
 
+export class RegisteredExpenseQueryValidationError extends Error {
+  constructor() {
+    super("Invalid registered expense query");
+    this.name = "RegisteredExpenseQueryValidationError";
+  }
+}
+
 export class QueryRegisteredExpenses {
   constructor(private readonly expenses: RegisteredExpenseQueryRepository) {}
 
@@ -23,7 +30,7 @@ export class QueryRegisteredExpenses {
       || !isCanonicalPaymentMethod(input.paymentMethod)
       || !isValidCursor(input.cursor)
     ) {
-      throw new Error("Invalid registered expense query");
+      throw new RegisteredExpenseQueryValidationError();
     }
   }
 }
