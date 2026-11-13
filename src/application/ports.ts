@@ -68,6 +68,45 @@ export interface TransactionDecisionRepository {
   ): Promise<TransactionRecord | null>;
 }
 
+export interface RegisteredExpenseCursor {
+  createdAt: Date;
+  id: string;
+}
+
+export interface RegisteredExpenseQueryInput {
+  workspaceId: string;
+  from: Date;
+  to: Date;
+  limit: number;
+  paymentMethod?: string;
+  cursor?: RegisteredExpenseCursor;
+}
+
+export interface RegisteredExpenseItem {
+  id: string;
+  amount: string;
+  currency: string;
+  concept: string;
+  paymentMethod: string;
+  createdAt: Date;
+}
+
+export interface RegisteredExpenseCurrencyTotal {
+  currency: string;
+  amount: string;
+}
+
+export interface RegisteredExpenseQueryResult {
+  items: RegisteredExpenseItem[];
+  totalCount: number;
+  totalsByCurrency: RegisteredExpenseCurrencyTotal[];
+  nextCursor: RegisteredExpenseCursor | null;
+}
+
+export interface RegisteredExpenseQueryRepository {
+  queryRegisteredExpenses(input: RegisteredExpenseQueryInput): Promise<RegisteredExpenseQueryResult>;
+}
+
 export interface ConfirmationPolicyRepository {
   findByWorkspaceAndChannel(
     workspaceId: string,

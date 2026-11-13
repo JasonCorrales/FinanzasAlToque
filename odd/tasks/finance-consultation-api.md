@@ -10,8 +10,8 @@ Branch: `feat/finance-consultation-api`. Delivery: `stacked-to-main`; forecast ~
 - Assumption A3 — Supabase Auth identifies the user, and server-side membership resolves the authorized workspace.
 
 ## Tasks
-- T1 [S1-S2] [route: bounded worker via context backstop] [status: in_progress] Add authenticated user-to-workspace resolution with tests and migration. Commit: pending.
-- T2 [S1-S2] [route: parent inline] [status: pending] Add decimal-safe, paginated registered-expense query and totals with filters and tests. Commit: pending.
+- T1 [S1-S2] [route: bounded worker via context backstop] [status: done] Add authenticated user-to-workspace resolution with tests and migration. Commit: d662264.
+- T2 [S1-S2] [route: bounded worker via context backstop] [status: in_progress] Add decimal-safe, paginated registered-expense query and totals with filters and tests. Commit: pending.
 - T3 [S1-S2] [route: parent inline] [status: pending] Expose the authenticated HTTP endpoint and document its contract and production configuration. Commit: pending.
 - T4 [S1-S2] [route: independent verifier required for security risk item 2] [status: pending] Run full verification, tenant-isolation probes, and close the feature. Commit: pending.
 
@@ -25,3 +25,5 @@ Branch: `feat/finance-consultation-api`. Delivery: `stacked-to-main`; forecast ~
 - L7 — User authorized the exact offline dependency command `npm install jose@6.2.14 --save-exact --offline` for T1.
 - L8 — The one authorized offline install failed with `ENOTCACHED`; no files changed, no tests ran, and no online retry was attempted.
 - L9 — User authorized the exact online command `npm install jose@6.2.14 --save-exact`.
+- L10 — T1 RED observed for missing modules; GREEN passed 3 files/13 tests, typecheck, and build. Parent spot check repeated 3 files/13 tests successfully. Work-unit commit: d662264.
+- L11 — Independent high-risk verification PASS for T1/S1-S2: isolated `npm ci`, 3 files/13 tests, typecheck, build, and full commit-range diff check all passed; no findings.
