@@ -1,6 +1,18 @@
 import type { CaptureChannel } from "../domain/transactions/expense-draft.js";
 import type { ConfirmationMode } from "../domain/confirmation-policies/confirmation-policy.js";
 
+export interface AuthenticatedUser {
+  id: string;
+}
+
+export interface AuthenticatedUserVerifier {
+  verify(accessToken: string): Promise<AuthenticatedUser>;
+}
+
+export interface WorkspaceMembershipRepository {
+  listWorkspaceIdsByAuthUserId(authUserId: string): Promise<string[]>;
+}
+
 export interface CaptureRecord {
   id: string;
   workspaceId: string;
@@ -54,6 +66,45 @@ export interface TransactionDecisionRepository {
     transactionId: string,
     action: "confirm" | "cancel"
   ): Promise<TransactionRecord | null>;
+}
+
+export interface RegisteredExpenseCursor {
+  createdAt: Date;
+  id: string;
+}
+
+export interface RegisteredExpenseQueryInput {
+  workspaceId: string;
+  from: Date;
+  to: Date;
+  limit: number;
+  paymentMethod?: string;
+  cursor?: RegisteredExpenseCursor;
+}
+
+export interface RegisteredExpenseItem {
+  id: string;
+  amount: string;
+  currency: string;
+  concept: string;
+  paymentMethod: string;
+  createdAt: Date;
+}
+
+export interface RegisteredExpenseCurrencyTotal {
+  currency: string;
+  amount: string;
+}
+
+export interface RegisteredExpenseQueryResult {
+  items: RegisteredExpenseItem[];
+  totalCount: number;
+  totalsByCurrency: RegisteredExpenseCurrencyTotal[];
+  nextCursor: RegisteredExpenseCursor | null;
+}
+
+export interface RegisteredExpenseQueryRepository {
+  queryRegisteredExpenses(input: RegisteredExpenseQueryInput): Promise<RegisteredExpenseQueryResult>;
 }
 
 export interface ConfirmationPolicyRepository {

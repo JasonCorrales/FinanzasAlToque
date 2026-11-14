@@ -6,12 +6,28 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uniqueIndex,
   uuid
 } from "drizzle-orm/pg-core";
+
+export const workspaceMemberships = pgTable(
+  "workspace_memberships",
+  {
+    authUserId: uuid("auth_user_id").notNull(),
+    workspaceId: uuid("workspace_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.authUserId, table.workspaceId],
+      name: "workspace_memberships_auth_user_workspace_pk"
+    })
+  ]
+);
 
 export const captures = pgTable(
   "captures",
