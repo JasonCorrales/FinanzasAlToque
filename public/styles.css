@@ -1,0 +1,24 @@
+:root { --navy: #12243b; --blue: #2176d2; --paper: #f5f7fa; --line: #d5dde7; --muted: #5f6d7c; --focus: #f0a000; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: var(--paper); color: var(--navy); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input { font: inherit; }
+button { min-height: 44px; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.auth-page, .shell { width: min(100% - 32px, 1080px); margin: 0 auto; padding: 24px 0; }
+.auth-page { display: grid; min-height: 100vh; place-items: center; }
+.auth-card { width: min(100%, 430px); padding: 32px; background: #fff; border: 1px solid var(--line); border-radius: 14px; }
+.wordmark { margin: 0 0 24px; color: var(--blue); font-weight: 800; }
+h1 { margin: 0 0 8px; font-size: clamp(2rem, 7vw, 3rem); line-height: 1.08; letter-spacing: -.04em; }
+.muted { color: var(--muted); }
+form { display: grid; gap: 8px; margin-top: 24px; }
+label { display: grid; gap: 4px; font-weight: 700; }
+input { min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; color: var(--navy); }
+form button { margin-top: 12px; border: 0; border-radius: 6px; background: var(--blue); color: #fff; font-weight: 700; }
+button:disabled { cursor: wait; opacity: .7; }
+.status { min-height: 1.5em; margin: 8px 0 0; color: var(--muted); }
+[role="alert"] { color: #82291f; font-weight: 700; }
+.shell header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.shell header button { border: 0; background: transparent; color: var(--blue); font-weight: 700; }
+.shell section { margin-top: 64px; max-width: 48ch; }
+@media (max-width: 480px) { .auth-page, .shell { width: min(100% - 24px, 1080px); padding: 12px 0; } .auth-card { padding: 24px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; } }

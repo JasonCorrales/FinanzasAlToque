@@ -12,6 +12,7 @@
     "db:migrate": "tsx src/infrastructure/database/migrate-main.ts",
     "bank-sms:admin": "tsx src/admin/bank-sms-admin-main.ts",
     "build": "tsc -p tsconfig.build.json",
+    "web:build": "tsc -p web/tsconfig.json",
     "start": "node dist/main.js",
     "test": "vitest run",
     "test:watch": "vitest",

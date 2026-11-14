@@ -7,9 +7,9 @@ Branch: `feat/finance-dashboard`. Test runner: to be established with the fronte
 - S2 — “Login + dashboard funcional”
 
 ## Tasks
-- T1 [S1-S2] [route: bounded design writer via context backstop] [status: done] Create three responsive dashboard design directions and record the selected artboard. Commit: pending.
-- T2 [S2] [route: bounded writer if the implementation surface remains isolated] [status: in_progress] Add the browser frontend foundation and Supabase email/password authentication. Commit: pending.
-- T3 [S1-S2] [route: bounded writer if independent from deployment integration] [status: pending] Implement the responsive transaction dashboard against `GET /v1/transactions`, including date filters, totals, states, and cursor pagination. Commit: pending.
+- T1 [S1-S2] [route: bounded design writer via context backstop] [status: done] Create three responsive dashboard design directions and record the selected artboard. Commit: 240c8f6.
+- T2 [S2] [route: bounded writer if the implementation surface remains isolated] [status: done] Add the browser frontend foundation and Supabase email/password authentication. Commit: pending.
+- T3 [S1-S2] [route: bounded writer if independent from deployment integration] [status: in_progress] Implement the responsive transaction dashboard against `GET /v1/transactions`, including date filters, totals, states, and cursor pagination. Commit: pending.
 - T4 [S1-S2] [route: parent integration] [status: pending] Integrate same-origin production delivery, update configuration and documentation, and preserve existing API routes. Commit: pending.
 - T5 [S1-S2] [route: parent checks + independent verifier for risk items 2 and 5] [status: pending] Run focused, full, responsive, authentication, and production-routing verification and close the feature. Commit: pending.
 
@@ -23,3 +23,4 @@ Branch: `feat/finance-dashboard`. Test runner: to be established with the fronte
 - L7 — Risk: item 2 (browser authentication) and item 5 (frontend build and production delivery). The attempted `git fetch origin main` timed out after 30 seconds without updating refs or creating the feature branch; the branch was then created from the already-present verified `origin/main` ref `351274750f7d7324ebdd4fa705f684faf2f2245f`.
 - L8 — Design directions created under `design/finance-dashboard/`: `01-libro-mayor.html`, `02-corte-del-periodo.html`, and `03-linea-de-tiempo-movil.html`.
 - L9 — User selected `02-corte-del-periodo.html` (“Corte del período”) for implementation; `01-libro-mayor.html` and `03-linea-de-tiempo-movil.html` remain alternatives. Gentle Design handoff is in progress.
+- L10 — T2 RED observed because the browser auth module did not exist. GREEN passed `test/web/auth.test.ts` (4 tests), `npm run web:build`, root typecheck, and `git diff --check`. The browser stores only the access token in `sessionStorage`, loads same-origin public auth configuration, masks provider diagnostics, restores sessions, signs out explicitly, and keeps dashboard content unavailable before authentication.
