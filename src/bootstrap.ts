@@ -20,13 +20,22 @@ import { DrizzleTransactionQueryRepository } from "./infrastructure/repositories
 import { DrizzleTransactionRepository } from "./infrastructure/repositories/drizzle-transaction-repository.js";
 import { DrizzleWorkspaceMembershipRepository } from "./infrastructure/repositories/drizzle-workspace-membership-repository.js";
 import type { FinanceDatabase } from "./infrastructure/repositories/database.js";
+import {
+  loadDashboardRuntime,
+  type DashboardEnvironment,
+  type DashboardRuntime
+} from "./infrastructure/web/public-assets.js";
 
 interface ProductionAppOptions extends FastifyServerOptions {
   nextId?: () => string;
+  environment?: DashboardEnvironment;
+  dashboard?: DashboardRuntime;
 }
 
-export function buildAuthenticatedWorkspaceResolver(db: FinanceDatabase): ResolveAuthenticatedWorkspace {
-  const supabaseUrl = process.env.SUPABASE_URL;
+export function buildAuthenticatedWorkspaceResolver(
+  db: FinanceDatabase,
+  supabaseUrl = process.env.SUPABASE_URL
+): ResolveAuthenticatedWorkspace {
   if (!supabaseUrl) throw new Error("SUPABASE_URL is required");
 
   return new ResolveAuthenticatedWorkspace({
@@ -39,7 +48,12 @@ export function buildProductionApp(
   db: FinanceDatabase,
   options: ProductionAppOptions = {}
 ) {
-  const { nextId = randomUUID, ...fastifyOptions } = options;
+  const {
+    nextId = randomUUID,
+    environment = process.env,
+    dashboard = loadDashboardRuntime(environment),
+    ...fastifyOptions
+  } = options;
   const transactions = new DrizzleTransactionRepository(db);
   const processCapture = new ProcessCapture({
     captures: new DrizzleCaptureRepository(db),
@@ -60,7 +74,7 @@ export function buildProductionApp(
     nextId
   });
   const decideTransaction = new DecideTransaction(transactions);
-  const resolveAuthenticatedWorkspace = buildAuthenticatedWorkspaceResolver(db);
+  const resolveAuthenticatedWorkspace = buildAuthenticatedWorkspaceResolver(db, environment.SUPABASE_URL);
   const queryRegisteredExpenses = new QueryRegisteredExpenses(new DrizzleTransactionQueryRepository(db));
 
   return buildApp({
@@ -69,6 +83,7 @@ export function buildProductionApp(
     processBankSmsCapture,
     decideTransaction,
     resolveAuthenticatedWorkspace,
-    queryRegisteredExpenses
+    queryRegisteredExpenses,
+    dashboard
   });
 }

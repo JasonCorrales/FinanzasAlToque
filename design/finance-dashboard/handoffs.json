@@ -6,10 +6,10 @@
       "status": "in_progress",
       "queued": false,
       "sentAt": "2026-11-14T03:27:22.728Z",
-      "startedAt": "2026-11-14T03:27:25.059Z",
+      "startedAt": "2026-11-14T03:58:25.733Z",
       "implementedAt": null,
       "feature": "odd/tasks/finance-dashboard.md",
-      "note": "Selected for the functional Supabase login and production-connected dashboard."
+      "note": "UI and auth are implemented; production integration is waiting for the one authorized main-branch recovery fetch."
     }
   }
 }
