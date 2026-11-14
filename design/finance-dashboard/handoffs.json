@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "02-corte-del-periodo.html",
+  "handoffs": {
+    "02-corte-del-periodo.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-14T03:27:22.728Z",
+      "startedAt": "2026-11-14T03:27:25.059Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/finance-dashboard.md",
+      "note": "Selected for the functional Supabase login and production-connected dashboard."
+    }
+  }
+}
