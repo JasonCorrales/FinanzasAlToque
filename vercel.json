@@ -1,6 +1,6 @@
 {
   "functions": {
-    "src/server.ts": {
+    "api/server.ts": {
       "includeFiles": "public/**"
     }
   }

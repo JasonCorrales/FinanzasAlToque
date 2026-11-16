@@ -3,11 +3,13 @@ import { readFile, readdir } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 describe("Vercel entrypoint", () => {
-  it("exposes an unshadowed entrypoint that directly imports Fastify", async () => {
+  it("exposes an api-directory entrypoint that directly imports Fastify", async () => {
+    const apiFiles = await readdir("api");
     const sourceFiles = await readdir("src");
-    const serverSource = await readFile("src/server.ts", "utf8");
+    const serverSource = await readFile("api/server.ts", "utf8");
 
-    expect(sourceFiles).toContain("server.ts");
+    expect(apiFiles).toEqual(["server.ts"]);
+    expect(sourceFiles).not.toContain("server.ts");
     expect(sourceFiles).not.toContain("app.ts");
     expect(sourceFiles).not.toContain("index.ts");
     expect(serverSource).toMatch(/(?:from|require|import)\s*(?:\(\s*)?["']fastify["']/);
@@ -21,7 +23,7 @@ describe("Vercel entrypoint", () => {
 
     expect(vercel).toEqual({
       functions: {
-        "src/server.ts": { includeFiles: "public/**" }
+        "api/server.ts": { includeFiles: "public/**" }
       }
     });
     expect(vercel).not.toHaveProperty("rewrites");
@@ -33,6 +35,9 @@ describe("Vercel entrypoint", () => {
     expect(packageJson.scripts.build).toBe("tsc -p tsconfig.build.json && npm run web:build");
     expect(packageJson.scripts.check).toBe("npm run typecheck && npm run web:build && npm test && npm run build");
     expect(packageJson.scripts.start).toBe("node dist/main.js");
+
+    const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));
+    expect(tsconfig.include).toContain("api");
   });
 
   it("documents dashboard login, public configuration, Vercel delivery, and date semantics", async () => {
