@@ -3,13 +3,11 @@ import { readFile, readdir } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
 
 describe("Vercel entrypoint", () => {
-  it("exposes an api-directory entrypoint that directly imports Fastify", async () => {
-    const apiFiles = await readdir("api");
+  it("exposes a zero-config Fastify entrypoint that Vercel detects", async () => {
     const sourceFiles = await readdir("src");
-    const serverSource = await readFile("api/server.ts", "utf8");
+    const serverSource = await readFile("src/server.ts", "utf8");
 
-    expect(apiFiles).toEqual(["server.ts"]);
-    expect(sourceFiles).not.toContain("server.ts");
+    expect(sourceFiles).toContain("server.ts");
     expect(sourceFiles).not.toContain("app.ts");
     expect(sourceFiles).not.toContain("index.ts");
     expect(serverSource).toMatch(/(?:from|require|import)\s*(?:\(\s*)?["']fastify["']/);
@@ -18,15 +16,10 @@ describe("Vercel entrypoint", () => {
     expect(serverSource).not.toMatch(/export\s+default/);
   });
 
-  it("bundles only the public dashboard assets with the Fastify entrypoint and keeps API routes unshadowed", async () => {
+  it("uses Fastify zero-configuration detection without a conflicting functions override", async () => {
     const vercel = JSON.parse(await readFile("vercel.json", "utf8"));
 
-    expect(vercel).toEqual({
-      functions: {
-        "api/server.ts": { includeFiles: "public/**" }
-      }
-    });
-    expect(vercel).not.toHaveProperty("rewrites");
+    expect(vercel).toEqual({});
   });
 
   it("builds and checks the browser alongside the backend while preserving the start flow", async () => {
@@ -37,7 +30,7 @@ describe("Vercel entrypoint", () => {
     expect(packageJson.scripts.start).toBe("node dist/main.js");
 
     const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));
-    expect(tsconfig.include).toContain("api");
+    expect(tsconfig.include).not.toContain("api");
   });
 
   it("documents dashboard login, public configuration, Vercel delivery, and date semantics", async () => {

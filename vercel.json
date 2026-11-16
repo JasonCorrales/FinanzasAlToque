@@ -1,7 +1,1 @@
-{
-  "functions": {
-    "api/server.ts": {
-      "includeFiles": "public/**"
-    }
-  }
-}
+{}

@@ -215,14 +215,14 @@ The interpreter never writes directly to the database. The backend is the author
 
 ## Deploy on Vercel
 
-This change makes the API deployable on Vercel; it does **not** deploy it. Vercel detects `api/server.ts` as the Fastify Function entrypoint. Use Node.js 22.x (pinned in `package.json`).
+This change makes the API deployable on Vercel; it does **not** deploy it. Vercel uses zero-configuration Fastify detection for `src/server.ts`. Use Node.js 22.x (pinned in `package.json`).
 
 1. Create a Vercel project from this repository and configure these environment variables:
    - `DATABASE_URL`: the Supabase **shared transaction pooler** connection string, using port `6543`.
    - `DATABASE_CA_CERT`: the PEM CA certificate for that Supabase connection. Store the full certificate as an environment variable for Preview and Production; do not commit it. Every Vercel deployment fails at startup if it is absent, rather than disabling certificate verification.
    - `SUPABASE_URL`: the HTTPS Supabase project root URL used for authenticated consultation JWT verification and browser authentication. The application fails fast when it is absent or malformed.
    - `SUPABASE_PUBLISHABLE_KEY`: the browser-safe publishable key. Do not configure a service-role key, database credential, password, or signing secret here.
-2. `vercel.json` bundles `public/**` with the single `api/server.ts` Function; it adds no rewrites, so `/v1/*` API routes remain owned by Fastify. Run `npm run build` before local production checks; Vercel builds the Function from the repository.
+2. Keep `vercel.json` free of a `functions` override: Fastify's zero-configuration detector owns `src/server.ts`, and Vercel's Node File Trace includes files referenced through `fs` at runtime. No rewrites are added, so `/v1/*` API routes remain owned by Fastify. Run `npm run build` before local production checks; Vercel builds the Function from the repository.
 3. Run `npm run db:migrate` separately against the target database before serving traffic. Migrations are not run by the serverless function.
 4. After deployment, verify `GET https://<your-vercel-domain>/health` returns `{"status":"ok"}`, `GET https://<your-vercel-domain>/` returns the dashboard, and `GET https://<your-vercel-domain>/v1/client-config` returns only the public configuration.
 5. Update n8n `FINANCE_API_URL` to `https://<your-vercel-domain>` (and keep `FINANCE_WORKSPACE_ID` configured as before).
