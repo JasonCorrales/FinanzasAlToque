@@ -11,7 +11,7 @@ Branch: `feat/finance-dashboard`. Delivery: `stacked-to-main`. Test runner: `npm
 - T2 [S2] [route: bounded writer if the implementation surface remains isolated] [status: done] Add the browser frontend foundation and Supabase email/password authentication. Commit: b949d20.
 - T3 [S1-S2] [route: bounded writer if independent from deployment integration] [status: done] Implement the responsive transaction dashboard against `GET /v1/transactions`, including date filters, totals, states, and cursor pagination. Commit: 06f0aae.
 - T4 [S1-S2] [route: parent integration] [status: done] Integrate same-origin production delivery, update configuration and documentation, and preserve existing API routes. Commit: 13c3860.
-- T5 [S1-S2] [route: parent checks + independent verifier for risk items 2 and 5] [status: done] Run focused, full, responsive, authentication, and production-routing verification and close the feature. Commit: this closure commit.
+- T5 [S1-S2] [route: parent checks + independent verifier for risk items 2 and 5] [status: done] Run focused, full, responsive, authentication, and production-routing verification and close the feature. Commit: 728e3cf.
 
 ## Log
 - L1 — “listo continuemos con el dashboard”
