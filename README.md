@@ -184,6 +184,23 @@ The endpoint denies users with no membership or more than one membership rather 
 
 Correction is intentionally outside this MVP action flow. The user sends a new Telegram message instead.
 
+## Dashboard
+
+The same-origin dashboard is available at `/`. Sign in with a Supabase email/password user; the browser first reads the public configuration from `GET /v1/client-config` and then uses the resulting access token for `GET /v1/transactions`. The configuration endpoint returns exactly `supabaseUrl` and `supabasePublishableKey` only when dashboard configuration is set.
+
+Set these values before a production deployment:
+
+- `SUPABASE_URL`: the HTTPS root URL for the Supabase project, for example `https://project-ref.supabase.co`.
+- `SUPABASE_PUBLISHABLE_KEY`: the Supabase publishable browser key.
+
+`SUPABASE_PUBLISHABLE_KEY` is intended for browser use. It is not a database credential and must never be replaced with a Supabase service-role key, `DATABASE_URL`, passwords, JWT signing secrets, or other server credentials. Production startup fails with a stable configuration error when either dashboard value is absent or malformed.
+
+The dashboard is served on the API origin: `/` serves the HTML, `/styles.css` the stylesheet, `/assets/auth.js`, `/assets/dashboard.js`, and `/assets/main.js` the known browser modules, and `/v1/client-config` the public configuration. No separate browser host or CORS configuration is required.
+
+For local work, build both backend and browser assets with `npm run build`, then run the backend with `DATABASE_URL=postgres://finanzas:finanzas@localhost:5432/finanzas npm start`. During local development, `npm run dev` serves the same routes when `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are configured.
+
+Dashboard date filters use registration-time semantics: `from` and `to` select transactions by their recorded registration timestamp, with the selected end date inclusive. Results retain the API's cursor pagination and payment-method filter semantics.
+
 ## Architecture
 
 | Layer | Responsibility |
@@ -203,10 +220,12 @@ This change makes the API deployable on Vercel; it does **not** deploy it. Verce
 1. Create a Vercel project from this repository and configure these environment variables:
    - `DATABASE_URL`: the Supabase **shared transaction pooler** connection string, using port `6543`.
    - `DATABASE_CA_CERT`: the PEM CA certificate for that Supabase connection. Store the full certificate as an environment variable for Preview and Production; do not commit it. Every Vercel deployment fails at startup if it is absent, rather than disabling certificate verification.
-   - `SUPABASE_URL`: the HTTPS Supabase project root URL used to verify authenticated consultation JWTs. The API fails fast when it is absent.
-2. Run `npm run db:migrate` separately against the target database before serving traffic. Migrations are not run by the serverless function.
-3. After deployment, verify `GET https://<your-vercel-domain>/health` returns `{"status":"ok"}`.
-4. Update n8n `FINANCE_API_URL` to `https://<your-vercel-domain>` (and keep `FINANCE_WORKSPACE_ID` configured as before).
+   - `SUPABASE_URL`: the HTTPS Supabase project root URL used for authenticated consultation JWT verification and browser authentication. The application fails fast when it is absent or malformed.
+   - `SUPABASE_PUBLISHABLE_KEY`: the browser-safe publishable key. Do not configure a service-role key, database credential, password, or signing secret here.
+2. `vercel.json` bundles `public/**` with the single `src/server.ts` Function; it adds no rewrites, so `/v1/*` API routes remain owned by Fastify. Run `npm run build` before local production checks; Vercel builds the Function from the repository.
+3. Run `npm run db:migrate` separately against the target database before serving traffic. Migrations are not run by the serverless function.
+4. After deployment, verify `GET https://<your-vercel-domain>/health` returns `{"status":"ok"}`, `GET https://<your-vercel-domain>/` returns the dashboard, and `GET https://<your-vercel-domain>/v1/client-config` returns only the public configuration.
+5. Update n8n `FINANCE_API_URL` to `https://<your-vercel-domain>` (and keep `FINANCE_WORKSPACE_ID` configured as before).
 
 The function reuses its module-scoped PostgreSQL pool between warm invocations and limits that pool to one connection on Vercel. Local development remains unchanged: `npm run dev` and `npm start` use `src/main.ts` and only enable TLS when `DATABASE_CA_CERT` is supplied.
 
@@ -222,6 +241,6 @@ Persistence and production-composition tests use isolated PGlite state; producti
 
 ## Current scope
 
-Included: Telegram text capture, Telegram voice notes up to two minutes transcribed by OpenAI in n8n, transcript-only backend persistence, mandatory voice confirmation, the Coope Ande iPhone bank-SMS pilot, PostgreSQL persistence, channel confirmation policies for text, idempotency, Confirm/Cancel callbacks, and explanatory responses.
+Included: Telegram text capture, Telegram voice notes up to two minutes transcribed by OpenAI in n8n, transcript-only backend persistence, mandatory voice confirmation, the Coope Ande iPhone bank-SMS pilot, PostgreSQL persistence, channel confirmation policies for text, idempotency, Confirm/Cancel callbacks, same-origin dashboard authentication and transaction viewing, and explanatory responses.
 
-Excluded: audio-file uploads, backend audio storage, transcript editing, images, OCR, other messaging channels, generalized bank synchronization beyond the Coope Ande SMS pilot, dashboards, billing, correction callbacks, and a generalized AI expense interpreter.
+Excluded: audio-file uploads, backend audio storage, transcript editing, images, OCR, other messaging channels, generalized bank synchronization beyond the Coope Ande SMS pilot, billing, correction callbacks, and a generalized AI expense interpreter.

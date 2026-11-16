@@ -20,6 +20,7 @@ import {
   AuthenticatedWorkspaceAuthenticationError,
   ResolveAuthenticatedWorkspace
 } from "./application/resolve-authenticated-workspace.js";
+import type { DashboardRuntime } from "./infrastructure/web/public-assets.js";
 
 interface BuildAppOptions extends FastifyServerOptions {
   processCapture?: ProcessCapture;
@@ -27,6 +28,7 @@ interface BuildAppOptions extends FastifyServerOptions {
   decideTransaction?: DecideTransaction;
   resolveAuthenticatedWorkspace?: ResolveAuthenticatedWorkspace;
   queryRegisteredExpenses?: QueryRegisteredExpenses;
+  dashboard?: DashboardRuntime;
 }
 
 const bankSmsCaptureSchema = z.object({
@@ -135,6 +137,7 @@ export function buildApp(options: BuildAppOptions = {}) {
     decideTransaction,
     resolveAuthenticatedWorkspace,
     queryRegisteredExpenses,
+    dashboard,
     ...fastifyOptions
   } = options;
   const app = Fastify(fastifyOptions);
@@ -170,6 +173,17 @@ export function buildApp(options: BuildAppOptions = {}) {
   });
 
   app.get("/health", async () => ({ status: "ok" as const }));
+
+  if (dashboard) {
+    app.get("/", async (_request, reply) => reply.type("text/html; charset=utf-8").send(dashboard.assets.indexHtml));
+    app.get("/styles.css", async (_request, reply) => reply.type("text/css; charset=utf-8").send(dashboard.assets.stylesCss));
+    for (const [route, source] of Object.entries(dashboard.assets.modules)) {
+      app.get(route, async (_request, reply) => reply.type("application/javascript; charset=utf-8").send(source));
+    }
+    if (dashboard.clientConfig) {
+      app.get("/v1/client-config", async () => dashboard.clientConfig);
+    }
+  }
 
   if (processCapture) {
     app.post("/v1/captures", async (request, reply) => {

@@ -16,6 +16,35 @@ describe("Vercel entrypoint", () => {
     expect(serverSource).not.toMatch(/export\s+default/);
   });
 
+  it("bundles only the public dashboard assets with the Fastify entrypoint and keeps API routes unshadowed", async () => {
+    const vercel = JSON.parse(await readFile("vercel.json", "utf8"));
+
+    expect(vercel).toEqual({
+      functions: {
+        "src/server.ts": { includeFiles: "public/**" }
+      }
+    });
+    expect(vercel).not.toHaveProperty("rewrites");
+  });
+
+  it("builds and checks the browser alongside the backend while preserving the start flow", async () => {
+    const packageJson = JSON.parse(await readFile("package.json", "utf8"));
+
+    expect(packageJson.scripts.build).toBe("tsc -p tsconfig.build.json && npm run web:build");
+    expect(packageJson.scripts.check).toBe("npm run typecheck && npm run web:build && npm test && npm run build");
+    expect(packageJson.scripts.start).toBe("node dist/main.js");
+  });
+
+  it("documents dashboard login, public configuration, Vercel delivery, and date semantics", async () => {
+    const readme = await readFile("README.md", "utf8");
+
+    expect(readme).toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(readme).toContain("service-role");
+    expect(readme).toContain("/v1/client-config");
+    expect(readme).toContain("registration-time");
+    expect(readme).toContain("Vercel");
+  });
+
   it("keeps Vercel compiler dependencies and APIs available", async () => {
     const packageJson = JSON.parse(await readFile("package.json", "utf8"));
     const tsconfig = JSON.parse(await readFile("tsconfig.json", "utf8"));

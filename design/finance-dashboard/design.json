@@ -1,0 +1,28 @@
+{
+  "title": "Dashboard de Finanzas al Toque",
+  "brief": "Tres direcciones responsivas para consultar gastos registrados, totales separados por moneda, filtros y movimientos recientes.",
+  "feature": "odd/tasks/finance-dashboard.md",
+  "artboards": [
+    {
+      "file": "01-libro-mayor.html",
+      "title": "Libro mayor sereno",
+      "tradeoff": "Maximiza la comparación rápida en escritorio; la lectura cronológica es secundaria.",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "02-corte-del-periodo.html",
+      "title": "Corte del período",
+      "tradeoff": "Da mayor énfasis al período y los totales; muestra menos movimientos iniciales.",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "03-linea-de-tiempo-movil.html",
+      "title": "Línea de tiempo móvil",
+      "tradeoff": "Favorece el escaneo cronológico táctil; reduce la comparación tabular densa.",
+      "width": 1440,
+      "height": 1000
+    }
+  ]
+}
