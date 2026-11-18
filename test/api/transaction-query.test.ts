@@ -56,14 +56,14 @@ describe("GET /v1/transactions", () => {
     expect(response.json()).toEqual({
       items: [{
         id: cursorId,
-        amount: "1234.560000",
+        amount: "1234.56",
         currency: "CRC",
         concept: "Supermercado",
         paymentMethod: "card",
         createdAt: "2025-01-15T12:00:00.000Z"
       }],
       totalCount: 1,
-      totalsByCurrency: [{ currency: "CRC", amount: "1234.560000" }],
+      totalsByCurrency: [{ currency: "CRC", amount: "1234.56" }],
       nextCursor: "eyJ2IjoxLCJjcmVhdGVkQXQiOiIyMDI1LTAxLTE1VDEyOjAwOjAwLjAwMFoiLCJpZCI6IjQwMDAwMDAwLTAwMDAtNDAwMC04MDAwLTAwMDAwMDAwMDAwMSJ9"
     });
     expect(resolveAuthenticatedWorkspace.execute).toHaveBeenCalledWith({ accessToken: jwt });
@@ -74,6 +74,33 @@ describe("GET /v1/transactions", () => {
       paymentMethod: "card",
       limit: 20
     });
+    await app.close();
+  });
+
+  it("rejects database amounts with non-zero precision beyond two decimals", async () => {
+    const { app, queryRegisteredExpenses } = buildTransactionApp();
+    queryRegisteredExpenses.execute.mockResolvedValueOnce({
+      items: [{
+        id: cursorId,
+        amount: "1234.561000",
+        currency: "CRC",
+        concept: "Supermercado",
+        paymentMethod: "card",
+        createdAt: new Date("2025-01-15T12:00:00.000Z")
+      }],
+      totalCount: 1,
+      totalsByCurrency: [{ currency: "CRC", amount: "1234.561000" }],
+      nextCursor: null
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/v1/transactions?from=2025-01-01T00%3A00%3A00.000Z&to=2025-02-01T00%3A00%3A00.000Z",
+      headers: { authorization: `Bearer ${jwt}` }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({ status: "rejected", message: "La consulta no es válida." });
     await app.close();
   });
 

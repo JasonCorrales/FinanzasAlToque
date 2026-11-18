@@ -1,7 +1,7 @@
 const accessTokenKey = "finanzas.access-token";
 const genericError = "No pudimos obtener los movimientos. Intentá nuevamente.";
 const invalidPeriodError = "Elegí un período válido: la fecha de inicio no puede ser posterior a la fecha de fin.";
-const decimalPattern = /^-?\d+(?:\.\d+)?$/;
+const decimalPattern = /^-?\d+\.\d{2}$/;
 function isRecord(value) {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }

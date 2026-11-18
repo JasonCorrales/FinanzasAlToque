@@ -99,6 +99,14 @@ describe("transaction dashboard", () => {
     await createDashboardController(browser(vi.fn(async () => response({ ...payload, totalCount: "2" }))), malformedUi).load(period);
     expect(malformedUi.messages).toEqual(["No pudimos obtener los movimientos. Intentá nuevamente."]);
     expect(malformedUi.states).toEqual(["loading", "ready"]);
+
+    const uncanonicalAmountUi = view();
+    await createDashboardController(browser(vi.fn(async () => response({
+      ...payload,
+      items: [{ ...payload.items[0]!, amount: "14.9" }]
+    }))), uncanonicalAmountUi).load(period);
+    expect(uncanonicalAmountUi.messages).toEqual(["No pudimos obtener los movimientos. Intentá nuevamente."]);
+    expect(uncanonicalAmountUi.states).toEqual(["loading", "ready"]);
   });
 
   it("renders separate currency totals, count, newest-first registered movements, truthful registered-time data, and decimal-safe localized amounts", async () => {

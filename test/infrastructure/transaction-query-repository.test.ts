@@ -80,7 +80,7 @@ describe("DrizzleTransactionQueryRepository", () => {
     ]);
     expect(firstPage.items[0]).toEqual({
       id: "40000000-0000-4000-8000-000000000002",
-      amount: "20.200000",
+      amount: "20.20",
       currency: "CRC",
       concept: "Concept 40000000-0000-4000-8000-000000000002",
       paymentMethod: "card",
@@ -88,8 +88,8 @@ describe("DrizzleTransactionQueryRepository", () => {
     });
     expect(firstPage.totalCount).toBe(3);
     expect(firstPage.totalsByCurrency).toEqual([
-      { currency: "CRC", amount: "30.300000" },
-      { currency: "USD", amount: "3.300000" }
+      { currency: "CRC", amount: "30.30" },
+      { currency: "USD", amount: "3.30" }
     ]);
     expect(firstPage.nextCursor).toEqual({
       createdAt: new Date("2025-01-20T10:00:00.000Z"),
@@ -123,6 +123,6 @@ describe("DrizzleTransactionQueryRepository", () => {
 
     expect(result.items.map((item) => item.paymentMethod)).toEqual(["card"]);
     expect(result.totalCount).toBe(1);
-    expect(result.totalsByCurrency).toEqual([{ currency: "CRC", amount: "12.250000" }]);
+    expect(result.totalsByCurrency).toEqual([{ currency: "CRC", amount: "12.25" }]);
   });
 });

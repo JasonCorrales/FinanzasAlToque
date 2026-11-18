@@ -1,6 +1,6 @@
 import { DomainValidationError } from "../shared/domain-validation-error.js";
 
-const DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d+)?$/;
+const DECIMAL_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/;
 const ISO_CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
 export class Money {
@@ -21,10 +21,15 @@ export class Money {
       throw new DomainValidationError("currency must be a three-letter ISO code");
     }
 
-    return new Money(amount, currency);
+    return new Money(canonicalize(amount), currency);
   }
 
   private static isPositive(amount: string): boolean {
     return BigInt(amount.replace(".", "")) > 0n;
   }
+}
+
+function canonicalize(amount: string): string {
+  const [whole, fraction = ""] = amount.split(".");
+  return `${whole}.${fraction.padEnd(2, "0")}`;
 }

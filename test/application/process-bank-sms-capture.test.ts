@@ -110,11 +110,11 @@ describe("ProcessBankSmsCapture", () => {
     const { store, useCase } = setup();
     const result = await useCase.execute(input);
 
-    expect(result).toMatchObject({ status: "registered", duplicate: false, transaction: { amount: "5300", currency: "CRC", concept: "Super Mercado", paymentMethod: "card", status: "registered" } });
+    expect(result).toMatchObject({ status: "registered", duplicate: false, transaction: { amount: "5300.00", currency: "CRC", concept: "Super Mercado", paymentMethod: "card", status: "registered" } });
     expect(store.lookedUpHashes).toEqual([tokenHash]);
     expect(JSON.stringify([...store.captures.values()])).not.toContain(rawToken);
     expect(JSON.stringify([...store.captures.values()])).not.toContain(message);
-    expect([...store.captures.values()][0]).toMatchObject({ channel: "bank_sms", rawMessage: "bank_sms:coope_ande_purchase:sender=+50662229581:merchant_length=13:amount_crc=5300" });
+    expect([...store.captures.values()][0]).toMatchObject({ channel: "bank_sms", rawMessage: "bank_sms:coope_ande_purchase:sender=+50662229581:merchant_length=13:amount_crc=5300.00" });
     expect([...store.audits.values()][0]).toMatchObject({ templateId: "30000000-0000-4000-8000-000000000001", templateVersion: "coope-ande-v1", credentialId: "20000000-0000-4000-8000-000000000001", messageHash: expect.stringMatching(/^sha256:v1:[a-f0-9]{64}$/) });
     expect(JSON.stringify([...store.audits.values()])).not.toContain(message);
     expect(store.touches).toBe(1);

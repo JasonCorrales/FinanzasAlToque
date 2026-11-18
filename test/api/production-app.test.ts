@@ -103,7 +103,7 @@ describe("production application composition", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual({
       status: "registered", duplicate: false, transactionId: "00000000-0000-4000-8000-000000000002",
-      transaction: { amount: "5300.000000", currency: "CRC", concept: "Super Mercado", paymentMethod: "card" }
+      transaction: { amount: "5300.00", currency: "CRC", concept: "Super Mercado", paymentMethod: "card" }
     });
     expect((await db.select().from(schema.bankSmsCaptureAudits))).toHaveLength(1);
     await app.close();

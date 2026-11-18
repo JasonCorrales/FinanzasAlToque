@@ -256,7 +256,7 @@ describe("PostgreSQL repositories", () => {
     expect(await transactions.count()).toBe(1);
     expect(await transactions.findByCaptureId(workspaceId, capture.id)).toMatchObject({
       ...transaction,
-      amount: "15000.000000"
+      amount: "15000.00"
     });
   });
 

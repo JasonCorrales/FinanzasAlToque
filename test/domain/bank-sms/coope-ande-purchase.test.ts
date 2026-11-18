@@ -22,7 +22,7 @@ describe("CoopeAndePurchaseParser", () => {
     expect(parsed).toMatchObject({
       sender: "+50662229581",
       merchant: "Super Mercado",
-      amountCrc: 5300,
+      amountCrc: "5300.00",
       templateVersion: "1"
     });
     expect(() => new CoopeAndePurchaseParser(template).parse({
@@ -38,7 +38,7 @@ describe("CoopeAndePurchaseParser", () => {
     });
 
     expect(parsed.audit).toEqual({
-      redactedMessage: "bank_sms:coope_ande_purchase:sender=+50662229581:merchant_length=13:amount_crc=5300",
+      redactedMessage: "bank_sms:coope_ande_purchase:sender=+50662229581:merchant_length=13:amount_crc=5300.00",
       hash: "sha256:v1:3e1367a933150a4d666d36ca49f52ae220e6c268375bccdf4d1ce52ea1e5984a"
     });
     expect(parsed.audit.redactedMessage).not.toContain("Super Mercado");

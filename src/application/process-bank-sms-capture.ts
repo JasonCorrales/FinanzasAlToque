@@ -86,7 +86,7 @@ export class ProcessBankSmsCapture {
 
     const draft = ExpenseDraft.create({
       rawMessage: purchase.audit.redactedMessage,
-      money: Money.fromDecimal(String(purchase.amountCrc), "CRC"),
+      money: Money.fromDecimal(purchase.amountCrc, "CRC"),
       concept: purchase.merchant,
       paymentMethod: paymentMethod.code,
       sourceChannel: "bank_sms",

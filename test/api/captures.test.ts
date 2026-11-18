@@ -106,7 +106,7 @@ describe("POST /v1/captures", () => {
       message: "Gasto registrado: ₡15.000 CRC en Gasolina con Tarjeta.",
       transaction: {
         transactionType: "expense",
-        amount: "15000",
+        amount: "15000.00",
         currency: "CRC",
         concept: "Gasolina",
         paymentMethod: "card"

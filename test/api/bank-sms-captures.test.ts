@@ -27,7 +27,7 @@ function createUseCase() {
         transactionId: "40000000-0000-4000-8000-000000000001",
         transaction: {
           transactionType: "expense" as const,
-          amount: "5300",
+          amount: "5300.00",
           currency: "CRC",
           concept: "Super Mercado",
           paymentMethod: "card",
@@ -62,7 +62,7 @@ describe("POST /v1/bank-sms/captures", () => {
       duplicate: false,
       transactionId: "40000000-0000-4000-8000-000000000001",
       transaction: {
-        amount: "5300",
+        amount: "5300.00",
         currency: "CRC",
         concept: "Super Mercado",
         paymentMethod: "card"
@@ -84,7 +84,7 @@ describe("POST /v1/bank-sms/captures", () => {
       calls.push(input);
       return {
         status: "registered", duplicate: true, transactionId: "40000000-0000-4000-8000-000000000001",
-        transaction: { transactionType: "expense", amount: "5300", currency: "CRC", concept: "Super Mercado", paymentMethod: "card", status: "registered", confidence: 1 }
+        transaction: { transactionType: "expense", amount: "5300.00", currency: "CRC", concept: "Super Mercado", paymentMethod: "card", status: "registered", confidence: 1 }
       };
     };
     const app = buildApp({ logger: false, processBankSmsCapture: useCase });
@@ -94,7 +94,7 @@ describe("POST /v1/bank-sms/captures", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       status: "registered", duplicate: true, transactionId: "40000000-0000-4000-8000-000000000001",
-      transaction: { amount: "5300", currency: "CRC", concept: "Super Mercado", paymentMethod: "card" }
+      transaction: { amount: "5300.00", currency: "CRC", concept: "Super Mercado", paymentMethod: "card" }
     });
     expect(calls).toHaveLength(1);
     expect((calls[0] as { receivedAt: Date }).receivedAt).toBeInstanceOf(Date);

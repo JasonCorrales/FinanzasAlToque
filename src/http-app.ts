@@ -130,6 +130,17 @@ function encodeCursor(cursor: { createdAt: Date; id: string } | null): string | 
   return Buffer.from(JSON.stringify({ v: 1, createdAt: cursor.createdAt.toISOString(), id: cursor.id })).toString("base64url");
 }
 
+function canonicalizeDatabaseAmount(rawAmount: string): string {
+  const match = /^(0|[1-9]\d*)(?:\.(\d+))?$/.exec(rawAmount);
+  if (!match) throw new RegisteredExpenseQueryValidationError();
+  const whole = match[1]!;
+  const fraction = match[2] ?? "";
+  if (fraction.slice(2).split("").some((digit) => digit !== "0")) {
+    throw new RegisteredExpenseQueryValidationError();
+  }
+  return `${whole}.${fraction.slice(0, 2).padEnd(2, "0")}`;
+}
+
 export function buildApp(options: BuildAppOptions = {}) {
   const {
     processCapture,
@@ -220,7 +231,7 @@ export function buildApp(options: BuildAppOptions = {}) {
         duplicate: outcome.duplicate,
         transactionId: outcome.transactionId,
         transaction: {
-          amount: outcome.transaction.amount,
+          amount: canonicalizeDatabaseAmount(outcome.transaction.amount),
           currency: outcome.transaction.currency,
           concept: outcome.transaction.concept,
           paymentMethod: outcome.transaction.paymentMethod
@@ -255,14 +266,17 @@ export function buildApp(options: BuildAppOptions = {}) {
       return reply.code(200).send({
         items: result.items.map((item) => ({
           id: item.id,
-          amount: item.amount,
+          amount: canonicalizeDatabaseAmount(item.amount),
           currency: item.currency,
           concept: item.concept,
           paymentMethod: item.paymentMethod,
           createdAt: item.createdAt.toISOString()
         })),
         totalCount: result.totalCount,
-        totalsByCurrency: result.totalsByCurrency,
+        totalsByCurrency: result.totalsByCurrency.map((total) => ({
+          currency: total.currency,
+          amount: canonicalizeDatabaseAmount(total.amount)
+        })),
         nextCursor: encodeCursor(result.nextCursor)
       });
     });

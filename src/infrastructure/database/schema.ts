@@ -203,7 +203,7 @@ export const transactions = pgTable(
     workspaceId: uuid("workspace_id").notNull(),
     captureId: uuid("capture_id").notNull(),
     transactionType: text("transaction_type").notNull(),
-    amount: numeric("amount", { precision: 20, scale: 6 }).notNull(),
+    amount: numeric("amount", { precision: 20, scale: 2 }).notNull(),
     currency: text("currency").notNull(),
     concept: text("concept").notNull(),
     paymentMethod: text("payment_method").notNull(),

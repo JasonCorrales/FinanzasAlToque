@@ -25,7 +25,7 @@ export interface BankSmsAudit {
 export interface CoopeAndePurchase {
   sender: string;
   merchant: string;
-  amountCrc: number;
+  amountCrc: string;
   templateVersion: string;
   audit: BankSmsAudit;
 }
@@ -123,7 +123,7 @@ function normalizeCoopeAndeSender(sender: string): string {
   return normalized;
 }
 
-function parseCrcAmount(rawAmount: string): number {
+function parseCrcAmount(rawAmount: string): string {
   if (!/^(?:0|[1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)(?:\.00)?$/.test(rawAmount)) {
     throw new DomainValidationError("amount must be a positive whole CRC amount with valid separators");
   }
@@ -133,7 +133,7 @@ function parseCrcAmount(rawAmount: string): number {
   if (amount <= 0n || amount > MAX_CRC_AMOUNT) {
     throw new DomainValidationError("amount must be a positive safely representable CRC amount");
   }
-  return Number(amount);
+  return `${wholeAmount}.00`;
 }
 
 function createAuditHash(sender: string, originalMessage: string): string {

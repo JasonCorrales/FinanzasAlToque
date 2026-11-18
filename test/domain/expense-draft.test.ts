@@ -19,7 +19,7 @@ describe("ExpenseDraft", () => {
 
     expect(draft.toPrimitives()).toEqual({
       transactionType: "expense",
-      amount: "15000",
+      amount: "15000.00",
       currency: "CRC",
       concept: "Gasolina",
       paymentMethod: "card",
