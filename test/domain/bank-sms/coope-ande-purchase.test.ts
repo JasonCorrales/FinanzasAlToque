@@ -31,6 +31,38 @@ describe("CoopeAndePurchaseParser", () => {
     })).toThrow(DomainValidationError);
   });
 
+  it("parses the reported purchase with a two-digit CRC fractional amount", () => {
+    const reportedMessage = "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Rosti Pollos N Jose C Ri por 13,270.01 colones";
+
+    const parsed = new CoopeAndePurchaseParser(template).parse({
+      sender: "+50662229581",
+      message: reportedMessage
+    });
+
+    expect(parsed).toMatchObject({
+      merchant: "Rosti Pollos N Jose C Ri",
+      amountCrc: "13270.01"
+    });
+    expect(parsed.audit.redactedMessage).toBe(
+      "bank_sms:coope_ande_purchase:sender=+50662229581:merchant_length=24:amount_crc=13270.01"
+    );
+    expect(parsed.audit.redactedMessage).not.toContain("Rosti Pollos N Jose C Ri");
+    expect(parsed.audit.redactedMessage).not.toContain(reportedMessage);
+  });
+
+  it.each([
+    ["5,300", "5300.00"],
+    ["5,300.00", "5300.00"],
+    ["5,300.50", "5300.50"]
+  ])("canonicalizes CRC amount %s as %s", (rawAmount, amountCrc) => {
+    const parsed = new CoopeAndePurchaseParser(template).parse({
+      sender: "+50662229581",
+      message: `Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por ${rawAmount} colones`
+    });
+
+    expect(parsed.amountCrc).toBe(amountCrc);
+  });
+
   it("creates privacy-safe, versioned audit metadata without retaining the merchant or whole message", () => {
     const parsed = new CoopeAndePurchaseParser(template).parse({
       sender: "+506 6222-9581",
@@ -46,12 +78,13 @@ describe("CoopeAndePurchaseParser", () => {
   });
 
   it.each([
-    "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 5,300.50 colones",
+    "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 5,300.5 colones",
+    "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 5,300.000 colones",
     "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 5.300,00 colones",
     "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 5,30.00 colones",
     "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 0.00 colones",
     "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Shop por 9007199254740992 colones"
-  ])("rejects unsafe or non-whole CRC amount %s", (invalidMessage) => {
+  ])("rejects malformed, zero, or unsafe CRC amount %s", (invalidMessage) => {
     expect(() => new CoopeAndePurchaseParser(template).parse({
       sender: "+50662229581",
       message: invalidMessage

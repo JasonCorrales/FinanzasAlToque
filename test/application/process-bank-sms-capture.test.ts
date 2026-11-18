@@ -120,6 +120,26 @@ describe("ProcessBankSmsCapture", () => {
     expect(store.touches).toBe(1);
   });
 
+  it("registers the reported two-decimal Coope Ande purchase without persisting its SMS or merchant in audit data", async () => {
+    const { store, useCase } = setup();
+    const reportedMessage = "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Rosti Pollos N Jose C Ri por 13,270.01 colones";
+
+    const result = await useCase.execute({ ...input, eventId: "event-43", message: reportedMessage });
+
+    expect(result).toMatchObject({
+      status: "registered",
+      duplicate: false,
+      transaction: { amount: "13270.01", currency: "CRC", concept: "Rosti Pollos N Jose C Ri" }
+    });
+    const captures = JSON.stringify([...store.captures.values()]);
+    const audits = JSON.stringify([...store.audits.values()]);
+    expect(captures).toContain("amount_crc=13270.01");
+    expect(captures).not.toContain(reportedMessage);
+    expect(captures).not.toContain("Rosti Pollos N Jose C Ri");
+    expect(audits).not.toContain(reportedMessage);
+    expect(audits).not.toContain("Rosti Pollos N Jose C Ri");
+  });
+
   it("rejects malformed, unknown, and revoked credentials with the same boundary error before state mutation", async () => {
     const { store, useCase } = setup();
     const unknown = "unknown-bank-sms-token-which-is-long-enough";

@@ -124,16 +124,20 @@ function normalizeCoopeAndeSender(sender: string): string {
 }
 
 function parseCrcAmount(rawAmount: string): string {
-  if (!/^(?:0|[1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)(?:\.00)?$/.test(rawAmount)) {
-    throw new DomainValidationError("amount must be a positive whole CRC amount with valid separators");
+  if (!/^(?:0|[1-9]\d*|[1-9]\d{0,2}(?:,\d{3})+)(?:\.\d{2})?$/.test(rawAmount)) {
+    throw new DomainValidationError("amount must be a positive CRC amount with valid separators and two decimal digits");
   }
 
-  const wholeAmount = rawAmount.replaceAll(",", "").replace(".00", "");
+  const [wholeWithSeparators = "", fractionalAmount = "00"] = rawAmount.split(".");
+  const wholeAmount = wholeWithSeparators.replaceAll(",", "");
   const amount = BigInt(wholeAmount);
-  if (amount <= 0n || amount > MAX_CRC_AMOUNT) {
-    throw new DomainValidationError("amount must be a positive safely representable CRC amount");
+  if (amount === 0n && fractionalAmount === "00") {
+    throw new DomainValidationError("amount must be a positive CRC amount");
   }
-  return `${wholeAmount}.00`;
+  if (amount > MAX_CRC_AMOUNT) {
+    throw new DomainValidationError("amount must be a safely representable CRC amount");
+  }
+  return `${wholeAmount}.${fractionalAmount}`;
 }
 
 function createAuditHash(sender: string, originalMessage: string): string {
