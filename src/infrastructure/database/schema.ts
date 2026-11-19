@@ -47,7 +47,10 @@ export const captures = pgTable(
       table.channel,
       table.externalMessageId
     ),
-    check("captures_channel_check", sql`${table.channel} in ('telegram', 'bank_sms')`),
+    check(
+      "captures_channel_check",
+      sql`${table.channel} in ('telegram', 'bank_sms', 'bank_email') and (${table.channel} <> 'bank_email' or ${table.rawMessage} ~ '^bank_email:[a-z][a-z0-9_]*:result=(accepted|rejected)$')`
+    ),
     check("captures_status_check", sql`${table.status} in ('received', 'processed', 'rejected')`),
     check("captures_raw_message_check", sql`length(trim(${table.rawMessage})) > 0`)
   ]
@@ -239,6 +242,46 @@ export const bankEmailTemplates = pgTable(
     check(
       "bank_email_templates_payment_method_check",
       sql`length(trim(${table.paymentMethod})) > 0`
+    )
+  ]
+);
+
+export const bankEmailCaptureAudits = pgTable(
+  "bank_email_capture_audits",
+  {
+    captureId: uuid("capture_id").primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    messageHash: text("message_hash").notNull(),
+    templateId: uuid("template_id").notNull(),
+    templateVersion: text("template_version").notNull(),
+    redactedMetadata: text("redacted_metadata").notNull(),
+    authenticationResult: text("authentication_result").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    foreignKey({
+      name: "bank_email_capture_audits_workspace_capture_fk",
+      columns: [table.workspaceId, table.captureId],
+      foreignColumns: [captures.workspaceId, captures.id]
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "bank_email_capture_audits_workspace_template_fk",
+      columns: [table.workspaceId, table.templateId],
+      foreignColumns: [bankEmailTemplates.workspaceId, bankEmailTemplates.id]
+    }).onDelete("restrict"),
+    check("bank_email_capture_audits_hash_check", sql`${table.messageHash} ~ '^sha256:v1:[a-f0-9]{64}$'`),
+    check(
+      "bank_email_capture_audits_template_version_check",
+      sql`length(trim(${table.templateVersion})) > 0`
+    ),
+    check(
+      "bank_email_capture_audits_redacted_metadata_check",
+      sql`length(trim(${table.redactedMetadata})) > 0`
+    ),
+    check(
+      "bank_email_capture_audits_authentication_result_check",
+      sql`${table.authenticationResult} in ('passed', 'failed')`
     )
   ]
 );

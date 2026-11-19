@@ -48,7 +48,7 @@ export class DrizzleCaptureRepository implements CaptureRepository {
 
   private toRecord(row: StoredCapture): CaptureRecord {
     if (
-      !["telegram", "bank_sms"].includes(row.channel) ||
+      !["telegram", "bank_sms", "bank_email"].includes(row.channel) ||
       !["received", "processed", "rejected"].includes(row.status)
     ) {
       throw new Error("stored capture has an unsupported channel or status");

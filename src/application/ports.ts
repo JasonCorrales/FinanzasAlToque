@@ -244,6 +244,23 @@ export interface BankEmailTemplateRepository {
   resolveActive(workspaceId: string, source: string): Promise<BankEmailTemplateRecord | null>;
 }
 
+export type BankEmailAuthenticationResult = "passed" | "failed";
+
+export interface BankEmailCaptureAuditRecord {
+  captureId: string;
+  workspaceId: string;
+  messageHash: string;
+  templateId: string;
+  templateVersion: string;
+  redactedMetadata: string;
+  authenticationResult: BankEmailAuthenticationResult;
+  receivedAt: Date;
+}
+
+export interface BankEmailCaptureAuditRepository {
+  saveOrGetAudit(input: BankEmailCaptureAuditRecord): Promise<{ audit: BankEmailCaptureAuditRecord; created: boolean }>;
+}
+
 export type InterpretationResult =
   | {
       kind: "expense";
