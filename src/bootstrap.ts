@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyServerOptions } from "fastify";
 
 import { DecideTransaction } from "./application/decide-transaction.js";
+import { ProcessBankEmailCapture } from "./application/process-bank-email-capture.js";
 import { ProcessBankSmsCapture } from "./application/process-bank-sms-capture.js";
 import { ProcessCapture } from "./application/process-capture.js";
 import { QueryRegisteredExpenses } from "./application/query-registered-expenses.js";
@@ -10,6 +11,9 @@ import { ResolveAuthenticatedWorkspace } from "./application/resolve-authenticat
 import { buildApp } from "./http-app.js";
 import { SupabaseJwtVerifier } from "./infrastructure/auth/supabase-jwt-verifier.js";
 import { SpanishExpenseInterpreter } from "./infrastructure/interpreters/spanish-expense-interpreter.js";
+import { DrizzleBankEmailCaptureAuditRepository } from "./infrastructure/repositories/drizzle-bank-email-capture-audit-repository.js";
+import { DrizzleBankEmailCredentialRepository } from "./infrastructure/repositories/drizzle-bank-email-credential-repository.js";
+import { DrizzleBankEmailTemplateRepository } from "./infrastructure/repositories/drizzle-bank-email-template-repository.js";
 import { DrizzleBankSmsCaptureAuditRepository } from "./infrastructure/repositories/drizzle-bank-sms-capture-audit-repository.js";
 import { DrizzleBankSmsCredentialRepository } from "./infrastructure/repositories/drizzle-bank-sms-credential-repository.js";
 import { DrizzleBankSmsTemplateRepository } from "./infrastructure/repositories/drizzle-bank-sms-template-repository.js";
@@ -73,6 +77,15 @@ export function buildProductionApp(
     audits: new DrizzleBankSmsCaptureAuditRepository(db),
     nextId
   });
+  const processBankEmailCapture = new ProcessBankEmailCapture({
+    captures: new DrizzleCaptureRepository(db),
+    transactions,
+    paymentMethods: new DrizzlePaymentMethodCatalogRepository(db),
+    credentials: new DrizzleBankEmailCredentialRepository(db),
+    templates: new DrizzleBankEmailTemplateRepository(db),
+    audits: new DrizzleBankEmailCaptureAuditRepository(db),
+    nextId
+  });
   const decideTransaction = new DecideTransaction(transactions);
   const resolveAuthenticatedWorkspace = buildAuthenticatedWorkspaceResolver(db, environment.SUPABASE_URL);
   const queryRegisteredExpenses = new QueryRegisteredExpenses(new DrizzleTransactionQueryRepository(db));
@@ -81,6 +94,7 @@ export function buildProductionApp(
     ...fastifyOptions,
     processCapture,
     processBankSmsCapture,
+    processBankEmailCapture,
     decideTransaction,
     resolveAuthenticatedWorkspace,
     queryRegisteredExpenses,

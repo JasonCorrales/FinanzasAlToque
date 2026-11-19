@@ -9,6 +9,12 @@ import {
   BankSmsValidationError
 } from "./application/bank-sms-errors.js";
 import type { DecideTransaction } from "./application/decide-transaction.js";
+import {
+  BankEmailAuthenticationError,
+  BankEmailConfigurationError,
+  BankEmailValidationError,
+  type ProcessBankEmailCapture
+} from "./application/process-bank-email-capture.js";
 import type { ProcessBankSmsCapture } from "./application/process-bank-sms-capture.js";
 import type { ProcessCapture } from "./application/process-capture.js";
 import {
@@ -25,6 +31,7 @@ import type { DashboardRuntime } from "./infrastructure/web/public-assets.js";
 interface BuildAppOptions extends FastifyServerOptions {
   processCapture?: ProcessCapture;
   processBankSmsCapture?: ProcessBankSmsCapture;
+  processBankEmailCapture?: ProcessBankEmailCapture;
   decideTransaction?: DecideTransaction;
   resolveAuthenticatedWorkspace?: ResolveAuthenticatedWorkspace;
   queryRegisteredExpenses?: QueryRegisteredExpenses;
@@ -36,6 +43,24 @@ const bankSmsCaptureSchema = z.object({
   sender: z.string().min(1),
   message: z.string().min(1),
   receivedAt: z.iso.datetime().optional()
+}).strict();
+
+const authenticationResultSchema = z.string().max(9).pipe(z.enum([
+  "pass", "fail", "softfail", "neutral", "none", "temperror", "permerror"
+]));
+
+const bankEmailCaptureSchema = z.object({
+  eventId: z.string().min(1).max(512),
+  sender: z.string().min(1).max(320),
+  subject: z.string().min(1).max(998),
+  body: z.string().min(1).max(65_536),
+  receivedAt: z.iso.datetime(),
+  authentication: z.object({
+    spf: authenticationResultSchema,
+    dkim: authenticationResultSchema,
+    dmarc: authenticationResultSchema,
+    domain: z.string().min(1).max(253)
+  }).strict()
 }).strict();
 
 const captureSchema = z.object({
@@ -68,11 +93,15 @@ const cursorPayloadSchema = z.object({
 }).strict();
 
 function publicErrorStatusCode(error: unknown): number {
-  if (error instanceof BankSmsAuthenticationError || error instanceof AuthenticatedWorkspaceAuthenticationError) return 401;
+  if (
+    error instanceof BankSmsAuthenticationError
+    || error instanceof BankEmailAuthenticationError
+    || error instanceof AuthenticatedWorkspaceAuthenticationError
+  ) return 401;
   if (error instanceof AuthenticatedWorkspaceAccessError) return 403;
   if (error instanceof RegisteredExpenseQueryValidationError) return 400;
-  if (error instanceof BankSmsValidationError) return 422;
-  if (error instanceof BankSmsConfigurationError) return 503;
+  if (error instanceof BankSmsValidationError || error instanceof BankEmailValidationError) return 422;
+  if (error instanceof BankSmsConfigurationError || error instanceof BankEmailConfigurationError) return 503;
   if (typeof error !== "object" || error === null || !("statusCode" in error)) return 500;
   const statusCode = error.statusCode;
   return typeof statusCode === "number" && statusCode >= 400 && statusCode < 500
@@ -81,12 +110,20 @@ function publicErrorStatusCode(error: unknown): number {
 }
 
 function publicErrorMessage(error: unknown): string {
-  if (error instanceof BankSmsAuthenticationError || error instanceof AuthenticatedWorkspaceAuthenticationError) return "No autorizado.";
+  if (
+    error instanceof BankSmsAuthenticationError
+    || error instanceof BankEmailAuthenticationError
+    || error instanceof AuthenticatedWorkspaceAuthenticationError
+  ) return "No autorizado.";
   if (error instanceof AuthenticatedWorkspaceAccessError) return "Acceso denegado.";
   if (error instanceof RegisteredExpenseQueryValidationError) return "La consulta no es válida.";
-  if (error instanceof BankSmsValidationError) return "La captura bancaria no coincide con la configuración.";
-  if (error instanceof BankSmsConfigurationError) return "La captura bancaria no está disponible.";
+  if (error instanceof BankSmsValidationError || error instanceof BankEmailValidationError) return "La captura bancaria no coincide con la configuración.";
+  if (error instanceof BankSmsConfigurationError || error instanceof BankEmailConfigurationError) return "La captura bancaria no está disponible.";
   return error instanceof Error ? error.message : "Request failed";
+}
+
+function normalizeAuthenticationResult(result: "pass" | "fail" | "softfail" | "neutral" | "none" | "temperror" | "permerror"): "pass" | "fail" {
+  return result === "pass" ? "pass" : "fail";
 }
 
 function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null {
@@ -97,7 +134,7 @@ function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null
     }
   }
   if (values.length !== 1) return null;
-  const match = /^Bearer ([A-Za-z0-9_-]{32,512})$/.exec(values[0] ?? "");
+  const match = /^Bearer ([A-Za-z0-9_-]{32,512})$/i.exec(values[0] ?? "");
   return match?.[1] ?? null;
 }
 
@@ -109,7 +146,7 @@ function consultationAccessToken(request: { raw: { rawHeaders: string[] } }): st
     }
   }
   if (values.length !== 1) return null;
-  const match = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/.exec(values[0] ?? "");
+  const match = /^Bearer ([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(values[0] ?? "");
   return match?.[1] ?? null;
 }
 
@@ -145,6 +182,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   const {
     processCapture,
     processBankSmsCapture,
+    processBankEmailCapture,
     decideTransaction,
     resolveAuthenticatedWorkspace,
     queryRegisteredExpenses,
@@ -159,6 +197,9 @@ export function buildApp(options: BuildAppOptions = {}) {
       error instanceof BankSmsAuthenticationError
       || error instanceof BankSmsValidationError
       || error instanceof BankSmsConfigurationError
+      || error instanceof BankEmailAuthenticationError
+      || error instanceof BankEmailValidationError
+      || error instanceof BankEmailConfigurationError
       || error instanceof AuthenticatedWorkspaceAuthenticationError
       || error instanceof AuthenticatedWorkspaceAccessError
       || error instanceof RegisteredExpenseQueryValidationError
@@ -237,6 +278,60 @@ export function buildApp(options: BuildAppOptions = {}) {
           paymentMethod: outcome.transaction.paymentMethod
         }
       });
+    });
+  }
+
+  if (processBankEmailCapture) {
+    app.post("/v1/bank-email/captures", async (request, reply) => {
+      const parsed = bankEmailCaptureSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(422).send({ status: "rejected", message: "La captura bancaria no es válida." });
+      }
+      const token = bankSmsToken(request);
+      if (!token) return reply.code(401).send({ status: "rejected", message: "No autorizado." });
+
+      try {
+        const outcome = await processBankEmailCapture.execute({
+          token,
+          eventId: parsed.data.eventId,
+          sender: parsed.data.sender,
+          subject: parsed.data.subject,
+          body: parsed.data.body,
+          receivedAt: new Date(parsed.data.receivedAt),
+          authentication: {
+            spf: normalizeAuthenticationResult(parsed.data.authentication.spf),
+            dkim: normalizeAuthenticationResult(parsed.data.authentication.dkim),
+            dmarc: normalizeAuthenticationResult(parsed.data.authentication.dmarc),
+            domain: parsed.data.authentication.domain
+          }
+        });
+        return reply.code(outcome.duplicate ? 200 : 201).send({
+          status: outcome.status,
+          duplicate: outcome.duplicate,
+          transactionId: outcome.transactionId,
+          transaction: {
+            amount: canonicalizeDatabaseAmount(outcome.transaction.amount),
+            currency: outcome.transaction.currency,
+            concept: outcome.transaction.concept,
+            paymentMethod: outcome.transaction.paymentMethod
+          }
+        });
+      } catch (error) {
+        if (
+          error instanceof BankEmailAuthenticationError
+          || error instanceof BankEmailValidationError
+          || error instanceof BankEmailConfigurationError
+        ) throw error;
+
+        const errorId = request.id;
+        request.log.error({ errorId }, "Bank email capture failed");
+        return reply.code(500).send({
+          statusCode: 500,
+          error: "Internal Server Error",
+          message: "Ocurrió un error interno. Intentá nuevamente.",
+          errorId
+        });
+      }
     });
   }
 
