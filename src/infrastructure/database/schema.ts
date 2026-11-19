@@ -177,6 +177,72 @@ export const bankSmsCaptureAudits = pgTable(
   ]
 );
 
+export const bankEmailAdapterCredentials = pgTable(
+  "bank_email_adapter_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    adapter: text("adapter").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true })
+  },
+  (table) => [
+    unique("bank_email_adapter_credentials_token_hash_uq").on(table.tokenHash),
+    uniqueIndex("bank_email_adapter_credentials_workspace_adapter_active_uq")
+      .on(table.workspaceId, table.adapter)
+      .where(sql`${table.active}`),
+    check("bank_email_adapter_credentials_adapter_check", sql`length(trim(${table.adapter})) > 0`),
+    check(
+      "bank_email_adapter_credentials_token_hash_check",
+      sql`${table.tokenHash} ~ '^[a-f0-9]{64}$'`
+    ),
+    check(
+      "bank_email_adapter_credentials_state_check",
+      sql`(${table.active} and ${table.revokedAt} is null) or (not ${table.active} and ${table.revokedAt} is not null)`
+    )
+  ]
+);
+
+export const bankEmailTemplates = pgTable(
+  "bank_email_templates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    workspaceId: uuid("workspace_id").notNull(),
+    source: text("source").notNull(),
+    version: text("version").notNull(),
+    paymentMethod: text("payment_method").notNull(),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => [
+    unique("bank_email_templates_workspace_source_version_uq").on(
+      table.workspaceId,
+      table.source,
+      table.version
+    ),
+    unique("bank_email_templates_workspace_id_uq").on(table.workspaceId, table.id),
+    foreignKey({
+      name: "bank_email_templates_workspace_payment_method_fk",
+      columns: [table.workspaceId, table.paymentMethod],
+      foreignColumns: [paymentMethods.workspaceId, paymentMethods.code]
+    }).onDelete("restrict"),
+    uniqueIndex("bank_email_templates_workspace_source_active_uq")
+      .on(table.workspaceId, table.source)
+      .where(sql`${table.active}`),
+    check("bank_email_templates_source_check", sql`length(trim(${table.source})) > 0`),
+    check("bank_email_templates_version_check", sql`length(trim(${table.version})) > 0`),
+    check(
+      "bank_email_templates_payment_method_check",
+      sql`length(trim(${table.paymentMethod})) > 0`
+    )
+  ]
+);
+
 export const paymentMethods = pgTable(
   "payment_methods",
   {

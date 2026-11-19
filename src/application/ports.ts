@@ -190,6 +190,60 @@ export interface BankSmsCaptureAuditRepository {
   saveOrGetAudit(input: BankSmsCaptureAuditRecord): Promise<{ audit: BankSmsCaptureAuditRecord; created: boolean }>;
 }
 
+export interface BankEmailAdapterCredentialRecord {
+  id: string;
+  workspaceId: string;
+  adapter: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastUsedAt: Date | null;
+  revokedAt: Date | null;
+}
+
+export interface CreateBankEmailAdapterCredential {
+  workspaceId: string;
+  adapter: string;
+  tokenHash: string;
+}
+
+export interface BankEmailCredentialRepository {
+  create(input: CreateBankEmailAdapterCredential): Promise<BankEmailAdapterCredentialRecord>;
+  listByWorkspace(workspaceId: string): Promise<BankEmailAdapterCredentialRecord[]>;
+  findActiveByTokenHash(tokenHash: string): Promise<BankEmailAdapterCredentialRecord | null>;
+  touchLastUsed(workspaceId: string, credentialId: string): Promise<BankEmailAdapterCredentialRecord | null>;
+  revoke(workspaceId: string, credentialId: string): Promise<BankEmailAdapterCredentialRecord | null>;
+  rotate(
+    workspaceId: string,
+    credentialId: string,
+    input: Omit<CreateBankEmailAdapterCredential, "workspaceId">
+  ): Promise<BankEmailAdapterCredentialRecord | null>;
+}
+
+export interface BankEmailTemplateRecord {
+  id: string;
+  workspaceId: string;
+  source: string;
+  version: string;
+  paymentMethod: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AssignBankEmailTemplate {
+  workspaceId: string;
+  source: string;
+  version: string;
+  paymentMethod: string;
+}
+
+export interface BankEmailTemplateRepository {
+  assign(input: AssignBankEmailTemplate): Promise<BankEmailTemplateRecord>;
+  listByWorkspace(workspaceId: string): Promise<BankEmailTemplateRecord[]>;
+  resolveActive(workspaceId: string, source: string): Promise<BankEmailTemplateRecord | null>;
+}
+
 export type InterpretationResult =
   | {
       kind: "expense";
