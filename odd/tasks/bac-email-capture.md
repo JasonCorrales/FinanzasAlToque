@@ -1,0 +1,31 @@
+# BAC email capture
+Implement the first backend-only BAC Costa Rica credit-card purchase email template as a secure, workspace-scoped financial-message ingestion flow.
+Security boundary: authenticated adapter credentials; raw email bodies, card data, authorization values, references, and plaintext tokens must never be persisted or logged.
+
+## Specs
+1. **S1 — BAC source identity.** Recognize the exact sender `NotificacionBAC@baccredomatic.cr` case-insensitively and the subject pattern `Notificación de transacción {merchant} {DD-MM-YYYY} - {HH:mm}` after safe Unicode normalization; reject unanchored, malformed, or non-BAC messages.
+2. **S2 — BAC purchase parsing.** Parse the user-provided BAC labels `Comercio:`, `Ciudad y país:`, `Fecha:`, `VISA:`, `Autorización:`, `Referencia:`, `Tipo de Transacción:`, and `Monto:`; accept `Tipo de Transacción: COMPRA`; support explicit ISO currency and exact two-decimal amounts such as `Monto: USD 2.99`; associate the configured credit card by institution, brand, and masked last four digits.
+3. **S3 — Cross-field validation.** Require the merchant, date, and time encoded in the subject to match the authoritative body values; mismatches or incomplete messages must fail closed without creating a capture, transaction, audit record, or counter change.
+4. **S4 — Backend capture contract.** Add a dedicated authenticated backend endpoint for email captures with a stable adapter-supplied `eventId`, sender, subject, plain-text body, receipt timestamp, and explicit email-authentication results; Gmail Apps Script or another mailbox adapter is outside this slice.
+5. **S5 — Authentication and trust.** Require one strong revocable Bearer credential per email adapter, persist only its hash, scope it to one workspace, require passing SPF, DKIM, and DMARC evidence for the trusted BAC domain, and fail closed for missing, malformed, unknown, revoked, cross-workspace, or unauthenticated input.
+6. **S6 — Automatic registration and idempotency.** A valid BAC purchase email creates a registered expense directly with its configured credit-card payment method; deduplicate atomically by workspace, channel, and `eventId`, returning the existing result for a duplicate without creating additional captures, audits, or transactions.
+7. **S7 — Configurable template and privacy-safe audit.** Resolve an active versioned BAC email template per workspace and persist only redacted metadata, a versioned SHA-256 audit hash, template/version identifiers, and non-sensitive processing facts; never persist or log the raw body, customer name, merchant, location, masked card value, authorization, reference, or plaintext Bearer token.
+8. **S8 — Administrative provisioning.** Provide backend administration to create, list, revoke, and rotate email-adapter credentials and assign the BAC template to a workspace/payment method; plaintext tokens appear only once and stored hashes never appear in list output.
+9. **S9 — Existing behavior.** Preserve Coope Ande bank-SMS capture, Telegram text and voice capture, workspace isolation, exact two-decimal monetary handling, confirmation semantics, sanitized HTTP errors, and migration replay behavior.
+10. **S10 — Scope correction.** Honor `perdon, primero solo el backend`: do not implement Gmail Apps Script, Gmail filters, mailbox polling, or adapter deployment in this slice; document only the backend request contract needed by a future adapter.
+
+## Tasks
+- [x] **T1** — S1-S3, S7 — Add the strict BAC purchase-email parser, cross-field validation, redaction, and audit-hash primitives with RED/GREEN domain tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (financial-message authenticity and sensitive data).
+- [ ] **T2** — S5, S7, S8 — Add email-adapter credential, template, and audit persistence with an idempotent migration and repository tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (credential secrets and workspace isolation).
+- [ ] **T3** — S4-S7, S9 — Add the authenticated application use case with trust validation, atomic idempotency, direct expense registration, and existing-flow regression tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (authentication and workspace boundary).
+- [ ] **T4** — S4-S6, S9 — Expose and compose the dedicated backend HTTP endpoint with public-contract, failure-side-effect, and regression tests. Route: `gentle-ai-worker` (context backstop). Commit: pending. Risk: item 2 (HTTP authentication boundary).
+- [ ] **T5** — S8, S10 — Add administrative provisioning and backend contract documentation, explicitly excluding Gmail Apps Script. Route: parent inline unless the context backstop requires a worker. Commit: pending. Risk: item 2 (credential generation and disclosure).
+- [ ] **T6** — S1-S10 — Run full tests/build, migration replay, differential checks for shared behavior, and independent security verification; close tracking evidence. Route: `gentle-ai-verify`. Commit: pending. Risk: item 2 (authentication, sensitive financial data, and workspace isolation).
+
+## Log
+- **L1** — `adelante procedamos con el primer caso de plantilla`
+- **L2** — `remitente: NotificacionBAC@baccredomatic.cr, asunto: Notificación de transacción APPLE.COM/BILL 17-11-2026 - 18:07`
+- **L3** — User supplied a BAC credit-card purchase email example containing the exact field labels listed in S2. Sensitive customer, card, authorization, and reference values are intentionally not copied into this repository document.
+- **L4** — Initial scope selection: `Backend + Gmail Apps Script`.
+- **L5** — Scope correction: `perdon, primero solo el backend`.
+- **L6** — T1 verification: focused parser suite passed (6 tests); independent security verification passed S1-S3 and S7 after restricting BAC currencies to CRC/USD and proving unsupported codes fail closed.
