@@ -110,6 +110,10 @@ The API can register Coope Ande card-purchase SMS messages directly from a per-d
 | View credential and template commands | `npm run bank-sms:admin -- --help` |
 | Receive a device-authenticated bank SMS | `POST /v1/bank-sms/captures` |
 
+## BAC email backend contract
+
+The BAC email capture flow is backend-only. Provision its workspace template and adapter credential with `npm run bank-email:admin -- --help`; follow the concise [BAC email backend contract](docs/bank-email-backend-contract.md). Gmail Apps Script, Gmail filters, mailbox polling, and adapter deployment are not implemented.
+
 ## Consult registered expenses
 
 `GET /v1/transactions` returns a read-only, cursor-paginated view of **registered expenses**. It is authenticated with a Supabase access JWT and resolves the workspace from server-side membership; callers cannot select a tenant with a query parameter or request body.
