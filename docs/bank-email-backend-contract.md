@@ -13,7 +13,7 @@ export WORKSPACE_UUID="10000000-0000-4000-8000-000000000001"
 
 # The method must already exist and be enabled in this workspace.
 DATABASE_URL="postgres://..." npm run bank-email:admin -- assign-bac-purchase \
-  --workspace "$WORKSPACE_UUID" --payment-method card
+  --workspace "$WORKSPACE_UUID" --payment-method card --card-last-four "<4 digits>"
 
 # Copy the printed token directly into the future adapter once.
 DATABASE_URL="postgres://..." npm run bank-email:admin -- create-adapter \
@@ -24,7 +24,7 @@ DATABASE_URL="postgres://..." npm run bank-email:admin -- list-adapters \
   --workspace "$WORKSPACE_UUID"
 ```
 
-The assignment is fixed to source `bac_purchase`, version `bac-email-v1`, and the label `BAC email adapter`. Assignment rejects missing, disabled, or another workspace's payment method through the payment-method repository.
+The assignment is fixed to source `bac_purchase`, version `bac-email-v1`, institution `BAC`, and card brand `VISA`. It requires the intended card's exactly four-digit masked suffix; the value is stored only with template configuration and is never returned by list, capture, audit, log, error, or HTTP output. Assignment rejects malformed suffixes and missing, disabled, or another workspace's payment method through the payment-method repository.
 
 | Need | Command | Result |
 |---|---|---|
@@ -107,7 +107,7 @@ If a token is exposed, revoke it immediately. Rotation both invalidates the prio
 
 - [ ] `npm run bank-email:admin -- --help` lists create, list, revoke, rotate, and BAC assignment commands.
 - [ ] The intended workspace has an enabled payment method before BAC assignment.
-- [ ] The BAC assignment uses `bac_purchase` / `bac-email-v1` and the intended workspace only.
+- [ ] The BAC assignment uses `bac_purchase` / `bac-email-v1`, the intended workspace only, and its required four-digit card suffix.
 - [ ] A newly created token was copied once to the adapter and not logged, stored, or screenshotted.
 - [ ] `list-adapters` contains neither plaintext tokens nor token hashes.
 - [ ] The adapter supplies passing SPF, DKIM, and DMARC evidence for `baccredomatic.cr`.

@@ -119,7 +119,7 @@ function setup() {
   });
   store.emailTemplates.set(workspaceId, {
     id: "30000000-0000-4000-8000-000000000001", workspaceId, source: "bac_purchase", version: "bac-email-v1",
-    paymentMethod: "bac-visa", active: true, createdAt: new Date(), updatedAt: new Date()
+    paymentMethod: "bac-visa", institution: "BAC", cardBrand: "VISA", cardLastFour: "4242", active: true, createdAt: new Date(), updatedAt: new Date()
   });
   store.paymentMethods.set(`${workspaceId}:bac-visa`, { workspaceId, code: "bac-visa", label: "BAC VISA", enabled: true });
   let sequence = 0;
@@ -186,6 +186,37 @@ describe("ProcessBankEmailCapture", () => {
     }
   });
 
+  it("rejects a parsed card identity that differs from the active template without side effects", async () => {
+    const { store, useCase } = setup();
+
+    await expect(useCase.execute({ ...input, body: body.replace("VISA: 4242", "VISA: 9999") })).rejects.toThrow(
+      "bank email capture does not match the configured template"
+    );
+    expectUnchanged(store);
+  });
+
+  it("fails closed when the active template has legacy null card identity", async () => {
+    const { store, useCase } = setup();
+    Object.assign(store.emailTemplates.get(workspaceId)!, {
+      institution: null,
+      cardBrand: null,
+      cardLastFour: null
+    });
+
+    await expect(useCase.execute(input)).rejects.toThrow("BAC purchase email template is unavailable");
+    expectUnchanged(store);
+  });
+
+  it("cannot use a matching card identity configured for another workspace", async () => {
+    const { store, useCase } = setup();
+    const template = store.emailTemplates.get(workspaceId)!;
+    store.emailTemplates.set(workspaceId, { ...template, cardLastFour: "9999" });
+    store.emailTemplates.set(otherWorkspaceId, { ...template, workspaceId: otherWorkspaceId, cardLastFour: "4242" });
+
+    await expect(useCase.execute(input)).rejects.toThrow("bank email capture does not match the configured template");
+    expectUnchanged(store);
+  });
+
   it("fails closed for malformed or unknown credentials, malformed timestamps, parser mismatches, disabled payment methods, and foreign workspace configuration", async () => {
     const scenarios: Array<(store: Store) => ProcessBankEmailCaptureInput> = [
       () => ({ ...input, token: "" }),
@@ -215,7 +246,10 @@ describe("ProcessBankEmailCapture", () => {
       const credentials = new DrizzleBankEmailCredentialRepository(db);
       const templates = new DrizzleBankEmailTemplateRepository(db);
       await credentials.create({ workspaceId, adapter: "gmail-apps-script", tokenHash });
-      await templates.assign({ workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa" });
+      await templates.assign({
+        workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa",
+        institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+      });
 
       let sequence = 0;
       const useCase = new ProcessBankEmailCapture({

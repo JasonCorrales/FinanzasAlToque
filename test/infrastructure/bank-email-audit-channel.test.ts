@@ -78,7 +78,10 @@ describe("bank email audit and channel persistence", () => {
     await credentials.create({ workspaceId, adapter: "gmail-apps-script", tokenHash });
     await enablePaymentMethod(workspaceId, "bac-visa");
     await enablePaymentMethod(otherWorkspaceId, "foreign-card");
-    const template = await templates.assign({ workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa" });
+    const template = await templates.assign({
+      workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa",
+      institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+    });
     const capture = await captures.createOrGet({
       id: "40000000-0000-4000-8000-000000000004",
       workspaceId,
@@ -107,7 +110,10 @@ describe("bank email audit and channel persistence", () => {
       workspaceId: otherWorkspaceId,
       source: "bac_purchase",
       version: "bac-email-v1",
-      paymentMethod: "foreign-card"
+      paymentMethod: "foreign-card",
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: "9999"
     });
     await captures.createOrGet({
       id: "40000000-0000-4000-8000-000000000007",
@@ -145,5 +151,7 @@ describe("bank email audit and channel persistence", () => {
     const names = columns.rows.map((column) => column.column_name);
     expect(names).toEqual(expect.arrayContaining(["message_hash", "template_id", "template_version", "redacted_metadata", "authentication_result", "received_at"]));
     expect(names).not.toEqual(expect.arrayContaining(["sender", "subject", "body", "merchant", "amount", "currency", "card", "authorization", "reference", "customer_name", "token"]));
+    const templateColumns = await client.query<{ column_name: string }>("SELECT column_name FROM information_schema.columns WHERE table_name = 'bank_email_templates'");
+    expect(templateColumns.rows.map((column) => column.column_name)).toEqual(expect.arrayContaining(["institution", "card_brand", "card_last_four"]));
   });
 });

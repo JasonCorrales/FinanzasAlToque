@@ -19,7 +19,15 @@ const credential = "30000000-0000-4000-8000-000000000003";
 interface State {
   credentials: AdminCredential[];
   digests: string[];
-  templates: Array<{ workspaceId: string; source: string; version: string; paymentMethod: string }>;
+  templates: Array<{
+    workspaceId: string;
+    source: string;
+    version: string;
+    paymentMethod: string;
+    institution: string;
+    cardBrand: string;
+    cardLastFour: string;
+  }>;
   enabledPaymentMethods: Array<{ workspaceId: string; code: string }>;
 }
 
@@ -140,12 +148,22 @@ describe("bank email administrative CLI", () => {
 
   it("assigns the committed BAC purchase source and version only to an enabled workspace payment method", async () => {
     const setup = fixture();
-    const assigned = await run(["assign-bac-purchase", "--workspace", workspace, "--payment-method", "card"], setup);
+    const assigned = await run([
+      "assign-bac-purchase", "--workspace", workspace, "--payment-method", "card", "--card-last-four", "4242"
+    ], setup);
 
     expect(assigned).toMatchObject({ result: 0, stdout: `assigned BAC purchase template ${BAC_PURCHASE_VERSION} to ${workspace}`, stderr: "" });
-    expect(assigned.state.templates).toEqual([{ workspaceId: workspace, source: BAC_PURCHASE_SOURCE, version: BAC_PURCHASE_VERSION, paymentMethod: "card" }]);
-    await expect(run(["assign-bac-purchase", "--workspace", workspace, "--payment-method", "disabled"], setup)).rejects.toThrow("payment method is unavailable");
-    await expect(run(["assign-bac-purchase", "--workspace", otherWorkspace, "--payment-method", "card"], setup)).rejects.toThrow("payment method is unavailable");
+    expect(assigned.state.templates).toEqual([{
+      workspaceId: workspace, source: BAC_PURCHASE_SOURCE, version: BAC_PURCHASE_VERSION, paymentMethod: "card",
+      institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+    }]);
+    expect(assigned.stdout).not.toContain("4242");
+    await expect(run([
+      "assign-bac-purchase", "--workspace", workspace, "--payment-method", "disabled", "--card-last-four", "4242"
+    ], setup)).rejects.toThrow("payment method is unavailable");
+    await expect(run([
+      "assign-bac-purchase", "--workspace", otherWorkspace, "--payment-method", "card", "--card-last-four", "4242"
+    ], setup)).rejects.toThrow("payment method is unavailable");
   });
 
   it("prints complete help and deterministically rejects invalid CLI input without mutations", async () => {
@@ -153,15 +171,27 @@ describe("bank email administrative CLI", () => {
     const help = await run(["--help"], setup);
     const unknown = await run(["destroy", "--workspace", workspace], setup);
     const invalid = await run(["create-adapter", "--workspace", "nope"], setup);
-    const missing = await run(["assign-bac-purchase", "--workspace", workspace], setup);
+    const missing = await run(["assign-bac-purchase", "--workspace", workspace, "--payment-method", "card"], setup);
+    const invalidLastFour = await run([
+      "assign-bac-purchase", "--workspace", workspace, "--payment-method", "card", "--card-last-four", "42a2"
+    ], setup);
+    const shortLastFour = await run([
+      "assign-bac-purchase", "--workspace", workspace, "--payment-method", "card", "--card-last-four", "123"
+    ], setup);
+    const longLastFour = await run([
+      "assign-bac-purchase", "--workspace", workspace, "--payment-method", "card", "--card-last-four", "12345"
+    ], setup);
     const unknownOption = await run(["list-adapters", "--workspace", workspace, "--token", "secret"], setup);
 
     expect(help.result).toBe(0);
     expect(help.stdout).toContain("create-adapter --workspace <uuid>");
-    expect(help.stdout).toContain("assign-bac-purchase --workspace <uuid> --payment-method <code>");
+    expect(help.stdout).toContain("assign-bac-purchase --workspace <uuid> --payment-method <code> --card-last-four <4 digits>");
     expect(unknown).toMatchObject({ result: 1, stdout: "", stderr: "unknown command" });
     expect(invalid).toMatchObject({ result: 1, stdout: "", stderr: "invalid workspace UUID" });
     expect(missing).toMatchObject({ result: 1, stdout: "", stderr: "missing required option" });
+    expect(invalidLastFour).toMatchObject({ result: 1, stdout: "", stderr: "invalid card last four" });
+    expect(shortLastFour).toMatchObject({ result: 1, stdout: "", stderr: "invalid card last four" });
+    expect(longLastFour).toMatchObject({ result: 1, stdout: "", stderr: "invalid card last four" });
     expect(unknownOption).toMatchObject({ result: 1, stdout: "", stderr: "unknown option" });
     expect(setup.state).toEqual({ credentials: [], digests: [], templates: [], enabledPaymentMethods: [{ workspaceId: workspace, code: "card" }] });
   });

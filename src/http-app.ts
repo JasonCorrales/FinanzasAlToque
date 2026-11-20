@@ -126,7 +126,10 @@ function normalizeAuthenticationResult(result: "pass" | "fail" | "softfail" | "n
   return result === "pass" ? "pass" : "fail";
 }
 
-function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null {
+function bankBearerToken(
+  request: { raw: { rawHeaders: string[] } },
+  caseInsensitiveScheme = false
+): string | null {
   const values: string[] = [];
   for (let index = 0; index < request.raw.rawHeaders.length; index += 2) {
     if (request.raw.rawHeaders[index]?.toLowerCase() === "authorization") {
@@ -134,8 +137,10 @@ function bankSmsToken(request: { raw: { rawHeaders: string[] } }): string | null
     }
   }
   if (values.length !== 1) return null;
-  const match = /^Bearer ([A-Za-z0-9_-]{32,512})$/i.exec(values[0] ?? "");
-  return match?.[1] ?? null;
+  const pattern = caseInsensitiveScheme
+    ? /^Bearer ([A-Za-z0-9_-]{32,512})$/i
+    : /^Bearer ([A-Za-z0-9_-]{32,512})$/;
+  return pattern.exec(values[0] ?? "")?.[1] ?? null;
 }
 
 function consultationAccessToken(request: { raw: { rawHeaders: string[] } }): string | null {
@@ -257,7 +262,7 @@ export function buildApp(options: BuildAppOptions = {}) {
       if (!parsed.success) {
         return reply.code(400).send({ status: "rejected", message: "La captura bancaria no es válida." });
       }
-      const token = bankSmsToken(request);
+      const token = bankBearerToken(request);
       if (!token) return reply.code(401).send({ status: "rejected", message: "No autorizado." });
 
       const outcome = await processBankSmsCapture.execute({
@@ -287,7 +292,7 @@ export function buildApp(options: BuildAppOptions = {}) {
       if (!parsed.success) {
         return reply.code(422).send({ status: "rejected", message: "La captura bancaria no es válida." });
       }
-      const token = bankSmsToken(request);
+      const token = bankBearerToken(request, true);
       if (!token) return reply.code(401).send({ status: "rejected", message: "No autorizado." });
 
       try {

@@ -98,19 +98,28 @@ describe("bank email credential and template persistence", () => {
       workspaceId,
       source: "bac_purchase",
       version: "bac-email-v1",
-      paymentMethod: "bac-visa"
+      paymentMethod: "bac-visa",
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: "4242"
     });
     const replacement = await templates.assign({
       workspaceId,
       source: "bac_purchase",
       version: "bac-email-v2",
-      paymentMethod: "bac-visa-new"
+      paymentMethod: "bac-visa-new",
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: "9999"
     });
     await templates.assign({
       workspaceId: otherWorkspaceId,
       source: "bac_purchase",
       version: "bac-email-v1",
-      paymentMethod: "foreign-card"
+      paymentMethod: "foreign-card",
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: "1111"
     });
 
     await expect(templates.resolveActive(workspaceId, "bac_purchase")).resolves.toMatchObject({
@@ -119,12 +128,18 @@ describe("bank email credential and template persistence", () => {
       source: "bac_purchase",
       version: "bac-email-v2",
       paymentMethod: "bac-visa-new",
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: "9999",
       active: true
     });
     expect((await templates.listByWorkspace(workspaceId)).find((template) => template.id === first.id)).toMatchObject({ active: false });
     await expect(templates.resolveActive(workspaceId, "other_source")).resolves.toBeNull();
     await expect(
-      templates.assign({ workspaceId, source: "other_source", version: "v1", paymentMethod: "missing" })
+      templates.assign({
+        workspaceId, source: "other_source", version: "v1", paymentMethod: "missing",
+        institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+      })
     ).rejects.toThrow();
     await db.insert(schema.paymentMethods).values({
       workspaceId,
@@ -133,10 +148,16 @@ describe("bank email credential and template persistence", () => {
       enabled: false
     });
     await expect(
-      templates.assign({ workspaceId, source: "other_source", version: "v1", paymentMethod: "disabled-card" })
+      templates.assign({
+        workspaceId, source: "other_source", version: "v1", paymentMethod: "disabled-card",
+        institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+      })
     ).rejects.toThrow();
     await expect(
-      templates.assign({ workspaceId, source: "other_source", version: "v1", paymentMethod: "foreign-card" })
+      templates.assign({
+        workspaceId, source: "other_source", version: "v1", paymentMethod: "foreign-card",
+        institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
+      })
     ).rejects.toThrow();
   });
 });

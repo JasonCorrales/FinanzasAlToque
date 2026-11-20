@@ -85,7 +85,7 @@ describe("POST /v1/bank-email/captures", () => {
     const { calls, useCase } = createUseCase();
     const app = appFor(useCase);
 
-    const response = await request(app);
+    const response = await request(app, `bEaReR ${token}`);
 
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual(publicOutcome);
@@ -269,7 +269,8 @@ describe("POST /v1/bank-email/captures", () => {
       tokenHash: createHash("sha256").update(token, "utf8").digest("hex")
     });
     await db.insert(schema.bankEmailTemplates).values({
-      workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa"
+      workspaceId, source: "bac_purchase", version: "bac-email-v1", paymentMethod: "bac-visa",
+      institution: "BAC", cardBrand: "VISA", cardLastFour: "4242"
     });
     let sequence = 0;
     const app = buildProductionApp(db, {
@@ -329,7 +330,7 @@ describe("POST /v1/bank-email/captures", () => {
     const app = buildApp({ logger: false, processBankSmsCapture: smsUseCase });
 
     const response = await app.inject({
-      method: "POST", url: "/v1/bank-sms/captures", headers: { authorization: "bEaReR bank-sms-token-which-is-long-enough-123456" },
+      method: "POST", url: "/v1/bank-sms/captures", headers: { authorization: "Bearer bank-sms-token-which-is-long-enough-123456" },
       payload: { eventId: "bank-regression-1", sender: "+506 6222-9581", message: "Coope Ande le informa se ha realizado una Compra con su Tarjeta Debito Super Mercado por 5,300.00 colones" }
     });
 

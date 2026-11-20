@@ -218,6 +218,9 @@ export const bankEmailTemplates = pgTable(
     source: text("source").notNull(),
     version: text("version").notNull(),
     paymentMethod: text("payment_method").notNull(),
+    institution: text("institution"),
+    cardBrand: text("card_brand"),
+    cardLastFour: text("card_last_four"),
     active: boolean("active").default(true).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
@@ -242,6 +245,13 @@ export const bankEmailTemplates = pgTable(
     check(
       "bank_email_templates_payment_method_check",
       sql`length(trim(${table.paymentMethod})) > 0`
+    ),
+    check(
+      "bank_email_templates_card_identity_check",
+      sql`(
+        (${table.institution} is null and ${table.cardBrand} is null and ${table.cardLastFour} is null)
+        or (${table.institution} = 'BAC' and ${table.cardBrand} = 'VISA' and ${table.cardLastFour} ~ '^[0-9]{4}$')
+      )`
     )
   ]
 );

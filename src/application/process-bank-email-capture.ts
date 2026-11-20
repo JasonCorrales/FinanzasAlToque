@@ -89,7 +89,10 @@ export class ProcessBankEmailCapture {
       !templateRecord.active ||
       templateRecord.workspaceId !== credential.workspaceId ||
       templateRecord.source !== BAC_PURCHASE_SOURCE ||
-      templateRecord.version !== BAC_PURCHASE_TEMPLATE_VERSION
+      templateRecord.version !== BAC_PURCHASE_TEMPLATE_VERSION ||
+      templateRecord.institution !== "BAC" ||
+      templateRecord.cardBrand !== "VISA" ||
+      !/^\d{4}$/.test(templateRecord.cardLastFour ?? "")
     ) {
       throw new BankEmailConfigurationError("BAC purchase email template is unavailable");
     }
@@ -103,6 +106,14 @@ export class ProcessBankEmailCapture {
     } catch (error) {
       if (error instanceof DomainValidationError) throw new BankEmailValidationError(error.message);
       throw error;
+    }
+
+    if (
+      purchase.card.institution !== templateRecord.institution ||
+      purchase.card.brand !== templateRecord.cardBrand ||
+      purchase.card.lastFour !== templateRecord.cardLastFour
+    ) {
+      throw new BankEmailValidationError();
     }
 
     const paymentMethod = await this.dependencies.paymentMethods.findEnabled(

@@ -226,6 +226,9 @@ export interface BankEmailTemplateRecord {
   source: string;
   version: string;
   paymentMethod: string;
+  institution: string | null;
+  cardBrand: string | null;
+  cardLastFour: string | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -236,6 +239,9 @@ export interface AssignBankEmailTemplate {
   source: string;
   version: string;
   paymentMethod: string;
+  institution: string;
+  cardBrand: string;
+  cardLastFour: string;
 }
 
 export interface BankEmailTemplateRepository {

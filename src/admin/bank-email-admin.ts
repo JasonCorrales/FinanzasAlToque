@@ -32,6 +32,9 @@ export interface AdminTemplateStore {
     source: string;
     version: string;
     paymentMethod: string;
+    institution: string;
+    cardBrand: string;
+    cardLastFour: string;
   }): Promise<unknown>;
 }
 
@@ -50,12 +53,13 @@ Commands:
   list-adapters --workspace <uuid>
   revoke-adapter --workspace <uuid> --credential <uuid>
   rotate-adapter --workspace <uuid> --credential <uuid>
-  assign-bac-purchase --workspace <uuid> --payment-method <code>
+  assign-bac-purchase --workspace <uuid> --payment-method <code> --card-last-four <4 digits>
 
 Options:
   --workspace <uuid>       Workspace identifier
   --credential <uuid>      Adapter credential identifier
   --payment-method <code>  Enabled payment method code
+  --card-last-four <digits> Masked card last four digits
   --help                   Show this help`;
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -79,6 +83,7 @@ function requireOptions(options: Record<string, string>, required: string[], all
   if (!uuid.test(options["--workspace"] ?? "")) return "invalid workspace UUID";
   if (options["--credential"] && !uuid.test(options["--credential"])) return "invalid credential UUID";
   if (options["--payment-method"]?.trim() === "") return "invalid option value";
+  if (options["--card-last-four"] && !/^\d{4}$/.test(options["--card-last-four"])) return "invalid card last four";
   return null;
 }
 
@@ -122,7 +127,10 @@ export async function runBankEmailAdmin(args: string[], dependencies: BankEmailA
     "list-adapters": { required: ["--workspace"], allowed: ["--workspace"] },
     "revoke-adapter": { required: ["--workspace", "--credential"], allowed: ["--workspace", "--credential"] },
     "rotate-adapter": { required: ["--workspace", "--credential"], allowed: ["--workspace", "--credential"] },
-    "assign-bac-purchase": { required: ["--workspace", "--payment-method"], allowed: ["--workspace", "--payment-method"] }
+    "assign-bac-purchase": {
+      required: ["--workspace", "--payment-method", "--card-last-four"],
+      allowed: ["--workspace", "--payment-method", "--card-last-four"]
+    }
   };
   const contract = contracts[command];
   if (!contract) {
@@ -145,7 +153,10 @@ export async function runBankEmailAdmin(args: string[], dependencies: BankEmailA
       workspaceId,
       source: BAC_PURCHASE_SOURCE,
       version: BAC_PURCHASE_VERSION,
-      paymentMethod: parsed["--payment-method"]!
+      paymentMethod: parsed["--payment-method"]!,
+      institution: "BAC",
+      cardBrand: "VISA",
+      cardLastFour: parsed["--card-last-four"]!
     });
     dependencies.write(`assigned BAC purchase template ${BAC_PURCHASE_VERSION} to ${workspaceId}`);
     return 0;

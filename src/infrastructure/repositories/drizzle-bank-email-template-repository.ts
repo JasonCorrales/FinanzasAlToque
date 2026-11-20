@@ -76,6 +76,9 @@ export class DrizzleBankEmailTemplateRepository implements BankEmailTemplateRepo
       source: row.source,
       version: row.version,
       paymentMethod: row.paymentMethod,
+      institution: row.institution,
+      cardBrand: row.cardBrand,
+      cardLastFour: row.cardLastFour,
       active: row.active,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt
